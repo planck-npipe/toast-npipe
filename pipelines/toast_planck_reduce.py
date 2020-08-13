@@ -1444,21 +1444,10 @@ def create_observations(args, detectors, obtrange, ringrange, odrange):
     # Add the bare minimum focal plane information for the conviqt operator
     focalplane = {}
     for det in tod.detectors:
-        # Getting the right polarization angle can be a sensitive matter.
-        # Dxx beams are always defined without psi_uv or psi_pol rotation
-        # but some Pxx beams may require psi_pol to be removed and psi_uv
-        # left in.
-        if args.conviqt_pxx:
-            # Beam is in the polarization basis.
-            # No extra rotations are needed
-            psipol = tod.rimo[det].psi_pol
-        else:
-            # Beam is in the detector basis. Convolver needs to remove
-            # the last rotation into the polarization sensitive frame.
-            psipol = tod.rimo[det].psi_uv + tod.rimo[det].psi_pol
         focalplane[det] = {
             "pol_leakage" : tod.rimo[det].epsilon,
-            "pol_angle_deg" : psipol,
+            "psi_pol_deg" : tod.rimo[det].psi_pol,
+            "psi_uv_deg" : tod.rimo[det].psi_uv,
         }
     ob["focalplane"] = focalplane
 
@@ -1996,7 +1985,7 @@ def run_conviqt(args, data, almfile, rimo, mpiworld):
         fwhm=args.conviqt_fwhm,
         order=args.conviqt_order,
         calibrate=True,
-        dxx=True,
+        dxx=not args.conviqt_pxx,
         apply_flags=False,
         out="signal",
         remove_monopole=True,

@@ -356,12 +356,12 @@ class MapSampler:
             # One process does the manipulation on each node
             self.Map._nodecomm.Barrier()
             if self.Map._noderank == 0:
-                self.Map._data[:] += other.Map[:]
+                self.Map.data[:] += other.Map[:]
             if self.pol and other.pol:
                 if self.Map_Q._noderank == (1 % self.Map_Q._nodeprocs):
-                    self.Map_Q._data[:] += other.Map_Q[:]
+                    self.Map_Q.data[:] += other.Map_Q[:]
                 if self.Map_U._noderank == (2 % self.Map_U._nodeprocs):
-                    self.Map_U._data[:] += other.Map_U[:]
+                    self.Map_U.data[:] += other.Map_U[:]
             self.Map._nodecomm.Barrier()
         else:
             self.Map += other.Map
@@ -377,12 +377,12 @@ class MapSampler:
             # One process does the manipulation on each node
             self.Map._nodecomm.Barrier()
             if self.Map._noderank == 0:
-                self.Map._data[:] -= other.Map[:]
+                self.Map.data[:] -= other.Map[:]
             if self.pol and other.pol:
                 if self.Map_Q._noderank == (1 % self.Map_Q._nodeprocs):
-                    self.Map_Q._data[:] -= other.Map_Q[:]
+                    self.Map_Q.data[:] -= other.Map_Q[:]
                 if self.Map_U._noderank == (2 % self.Map_U._nodeprocs):
-                    self.Map_U._data[:] -= other.Map_U[:]
+                    self.Map_U.data[:] -= other.Map_U[:]
             self.Map._nodecomm.Barrier()
         else:
             self.Map -= other.Map
@@ -398,12 +398,12 @@ class MapSampler:
             # One process does the manipulation on each node
             self.Map._nodecomm.Barrier()
             if self.Map._noderank == 0:
-                self.Map._data[:] *= other
+                self.Map.data[:] *= other
             if self.pol:
                 if self.Map_Q._noderank == (1 % self.Map_Q._nodeprocs):
-                    self.Map_Q._data[:] *= other
+                    self.Map_Q.data[:] *= other
                 if self.Map_U._noderank == (2 % self.Map_U._nodeprocs):
-                    self.Map_U._data[:] *= other
+                    self.Map_U.data[:] *= other
             self.Map._nodecomm.Barrier()
         else:
             self.Map *= other
@@ -418,12 +418,12 @@ class MapSampler:
         if self.shmem:
             self.Map._nodecomm.Barrier()
             if self.Map._noderank == 0:
-                self.Map._data[:] /= other
+                self.Map.data[:] /= other
             if self.pol:
                 if self.Map_Q._noderank == (1 % self.Map_Q._nodeprocs):
-                    self.Map_Q._data[:] /= other
+                    self.Map_Q.data[:] /= other
                 if self.Map_U._noderank == (2 % self.Map_U._nodeprocs):
-                    self.Map_U._data[:] /= other
+                    self.Map_U.data[:] /= other
             self.Map._nodecomm.Barrier()
         else:
             self.Map /= other
