@@ -51,7 +51,7 @@ class OpDipolePlanck(toast.Operator):
         self._solsys_glat = (solsys_glat if solsys_glat else
                              DEFAULT_PARAMETERS["solsys_glat"])
         self._npipe_mode = npipe_mode
-        self._lfi_mode = lfi_mode and np.int(freq) < 100
+        self._lfi_mode = lfi_mode and int(freq) < 100
         self._output = output
         self._margin = margin
         self._mode = mode.upper()

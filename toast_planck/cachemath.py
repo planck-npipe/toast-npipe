@@ -53,12 +53,12 @@ class OpCacheMath(toast.Operator):
                     cachename = "{}_{}".format(self._in1, det)
                     in1 = tod.cache.reference(cachename)
                 except Exception:
-                    in1 = np.float(self._in1)
+                    in1 = float(self._in1)
                 try:
                     cachename = "{}_{}".format(self._in2, det)
                     in2 = tod.cache.reference(cachename)
                 except Exception:
-                    in2 = np.float(self._in2)
+                    in2 = float(self._in2)
 
                 if self._add:
                     out = in1 + in2

@@ -447,7 +447,7 @@ class InputEstimator():
                     if outlier:
                         continue
                     bin_centers, sigmap, hitmap, offset = ring[:4]
-                    offset_bin = np.int(np.floor(offset / wbin_offset))
+                    offset_bin = int(np.floor(offset / wbin_offset))
                     if offset_bin not in collapsed_ring_lists:
                         collapsed_ring_lists[offset_bin] = []
                     collapsed_ring_lists[offset_bin].append(ring)
@@ -461,7 +461,7 @@ class InputEstimator():
                         bin_centers = ring[0]
                         center_min = min(center_min, bin_centers[0])
                         center_max = max(center_max, bin_centers[-1])
-                    nbin = np.int(
+                    nbin = int(
                         np.rint((center_max - center_min) / self._wbin)) + 1
                     all_bin_centers = center_min + np.arange(nbin) * self._wbin
                     all_sigmap = np.zeros(nbin, dtype=np.float64)

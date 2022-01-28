@@ -1231,7 +1231,7 @@ class OpReprocRing(toast.Operator):
                 "zodi ring",
                 "zodi blob",
             ]
-            self.zodier = Zodier(np.int(self.freq), emissivities=emissivities)
+            self.zodier = Zodier(int(self.freq), emissivities=emissivities)
         else:
             self.zodinames = None
             self.zodier = None
@@ -2447,7 +2447,7 @@ class OpReprocRing(toast.Operator):
                 good[:wmean] = True
                 good[-wmean:] = True
                 all_fits[name] = [
-                    (all_vals[0] + 1e-6).astype(np.int),
+                    (all_vals[0] + 1e-6).astype(int),
                     all_vals[1],
                     good,
                 ]

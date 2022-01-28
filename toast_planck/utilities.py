@@ -1734,11 +1734,11 @@ def count_samples(ringdb, freq, obt_range, ring_range, od_range):
                 ):
                     # The unnamed gap between two rings is so long that it
                     # needs to be split
-                    nstep = np.int(
+                    nstep = int(
                         np.ceil((hcm_start_time - last_stop_time) / (75 * 60))
                     )
                     steptime = (hcm_start_time - last_stop_time) / nstep
-                    steplen = np.int(
+                    steplen = int(
                         np.ceil((hcm_start_index - last_stop_index) / nstep)
                     )
                     if steplen > 1:
@@ -1775,9 +1775,9 @@ def count_samples(ringdb, freq, obt_range, ring_range, od_range):
                 if last_stop_time is not None and start_time - last_stop_time > 75 * 60:
                     # The unnamed gap between two rings is so long that it
                     # needs to be split
-                    nstep = np.int(np.ceil((start_time - last_stop_time) / (75 * 60)))
+                    nstep = int(np.ceil((start_time - last_stop_time) / (75 * 60)))
                     steptime = (start_time - last_stop_time) / nstep
-                    steplen = np.int(np.ceil((start_index - last_stop_index) / nstep))
+                    steplen = int(np.ceil((start_index - last_stop_index) / nstep))
                     if steplen > 1:
                         for istep in range(nstep):
                             rings.append(

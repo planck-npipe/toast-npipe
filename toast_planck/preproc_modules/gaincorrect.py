@@ -37,13 +37,13 @@ class GainCorrector():
         if g0 is None:
             self.g0 = IMO.get(
                 'IMO:HFI:DET:Phot_Pixel Name="{}":NoiseAndSyst:NonLinearity:g0'
-                ''.format(bolo_id), np.float)
+                ''.format(bolo_id), float)
         else:
             self.g0 = g0
         if v0 is None:
             self.v0 = IMO.get(
                 'IMO:HFI:DET:Phot_Pixel Name="{}":NoiseAndSyst:NonLinearity:v0'
-                ''.format(bolo_id), np.float)
+                ''.format(bolo_id), float)
         else:
             self.v0 = v0
 

@@ -77,9 +77,9 @@ class OpNoiseEstim():
             # that cross the gap.
 
             intervals = obs['intervals']
-            gap_min = np.int(self._lagmax) + 1
+            gap_min = int(self._lagmax) + 1
             # Downsampled data requires longer gaps
-            gap_min_nsum = np.int(self._lagmax * self._nsum) + 1
+            gap_min_nsum = int(self._lagmax * self._nsum) + 1
             offset, nsamp = tod.local_samples
             gapflags = np.zeros_like(commonflags)
             gapflags_nsum = np.zeros_like(commonflags)

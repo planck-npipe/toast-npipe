@@ -701,7 +701,7 @@ class FancyDestriperPol():
                  threshold=1e-2, ndegrade=1, fsample=1.0, lowpassfreq=1.0,
                  fwhm=10 * degree, lmax=128, dir_out='./', precond=True):
 
-        self.ndegrade = np.int(ndegrade)
+        self.ndegrade = int(ndegrade)
         if self.ndegrade < 1:
             raise Exception('ERROR: ndegrade cannot be smaller than one: {}'
                             ''.format(ndegrade))
@@ -879,8 +879,8 @@ class FancyDestriperPol():
         # The clean_toi is downsampled.  We find which steps have outlier
         # variances and flag the corresponding full rate flags
 
-        # steplen = np.int(60 * self.fsample / self.naverage)
-        steplen = np.int(300 * self.fsample / self.naverage)
+        # steplen = int(60 * self.fsample / self.naverage)
+        steplen = int(300 * self.fsample / self.naverage)
 
         for idet in range(self.ndet):
             nbad = np.sum(flag[idet] != 0)
@@ -906,7 +906,7 @@ class FancyDestriperPol():
                 istart = istop
             my_hitsum = np.array(my_hitsum)
             my_stepsum = np.array(my_stepsum)
-            my_rank = np.ones(my_hitsum.size, dtype=np.int) * self.rank
+            my_rank = np.ones(my_hitsum.size, dtype=int) * self.rank
             all_hitsum = np.hstack(self.comm.allgather(my_hitsum))
             all_stepsum = np.hstack(self.comm.allgather(my_stepsum))
             all_rank = np.hstack(self.comm.allgather(my_rank))
@@ -1387,7 +1387,7 @@ class FancyDestriperPol():
         self.comm.Bcast(ZXinv, root=0)
         self.time_invert_cov += MPI.Wtime() - t1
 
-        amplitudes = np.zeros(self.ndet * self.ntemplate, dtype=np.float)
+        amplitudes = np.zeros(self.ndet * self.ntemplate, dtype=float)
         amplitudes[ioff:] = x
         amplitudes = amplitudes.reshape([self.ndet, self.ntemplate])
 

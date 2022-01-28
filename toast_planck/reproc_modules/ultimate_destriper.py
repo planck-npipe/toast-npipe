@@ -56,7 +56,7 @@ class UltimateDestriper():
                 consider for the mean subtraction of stationary templates.
 
         """
-        self.ndegrade = np.int(ndegrade)
+        self.ndegrade = int(ndegrade)
         if self.ndegrade < 1:
             raise Exception('ERROR: ndegrade cannot be smaller than one: {}'
                             ''.format(ndegrade))
@@ -508,9 +508,9 @@ class UltimateDestriper():
 
         # Compress the non-offset indices
 
-        self.non_offset_index = -np.ones(self.namplitude_tot, dtype=np.int)
+        self.non_offset_index = -np.ones(self.namplitude_tot, dtype=int)
         self.non_offset_index[self.non_offset] = np.arange(
-            self.nnon_offset, dtype=np.int)
+            self.nnon_offset, dtype=int)
 
         # Then build the preconditioner matrix from dot products of
         # the destriping templates

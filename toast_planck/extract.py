@@ -86,13 +86,13 @@ class OpExtractPlanck(toast.Operator):
                 parts = line.split(",")
                 if header:
                     self.target_coord = parts[0].strip()
-                    self.ntarget = np.int(parts[1])
+                    self.ntarget = int(parts[1])
                     header = False
                 else:
                     name = parts[0].strip()
-                    lon = np.float(parts[1])
-                    lat = np.float(parts[2])
-                    radius = np.float(parts[3])
+                    lon = float(parts[1])
+                    lat = float(parts[2])
+                    radius = float(parts[3])
                     info = parts[4].strip()
                     self.targets[name] = Target(name, lon, lat, radius, info)
         else:
@@ -203,7 +203,7 @@ class OpExtractPlanck(toast.Operator):
 
         """
         ind = slice(istart, istop)
-        ring_number = (np.zeros(istop - istart, dtype=np.int) +
+        ring_number = (np.zeros(istop - istart, dtype=int) +
                        ring_offset + iring)
         times = tod.local_times()[ind]
         common_flags = (tod.local_common_flags()[ind] &

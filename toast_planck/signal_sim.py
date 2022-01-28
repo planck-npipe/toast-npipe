@@ -306,8 +306,8 @@ class OpSignalSim(toast.Operator):
             del self._alm
             my_outmap = np.vstack(my_outmap)
             my_pixels = self._dist_rings.local_pixels
-            my_maptemp = np.zeros([self._nnz, self._npix], dtype=np.float)
-            maptemp = np.zeros([self._nnz, self._npix], dtype=np.float)
+            my_maptemp = np.zeros([self._nnz, self._npix], dtype=float)
+            maptemp = np.zeros([self._nnz, self._npix], dtype=float)
             my_maptemp[:, my_pixels] = my_outmap
             self._comm.Reduce(my_maptemp, maptemp)
             del my_maptemp

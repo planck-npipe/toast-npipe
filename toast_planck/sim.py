@@ -136,7 +136,7 @@ class OpSimSHDET(toast.Operator):
             for det in tod.local_dets:
                 #print(det) # DEBUG
                 bolo_id = bolo_to_pnt(det)
-                bc = np.int(bolo_id[:2]) # belt code
+                bc = int(bolo_id[:2]) # belt code
 
                 transf1 = Transf1()
                 gaincorrector = GainCorrector(self._imo, bolo_id, linear=True)
@@ -176,10 +176,10 @@ class OpSimSHDET(toast.Operator):
                         raise RuntimeError(
                             'Warning: cannot read ADC table from {}'
                             ''.format(path))
-                        #adc_table = np.arange(self._nadc[det], dtype=np.float)
+                        #adc_table = np.arange(self._nadc[det], dtype=float)
                 else:
                     # Linear ADC table
-                    adc_table = np.arange(self._nadc[det], dtype=np.float)
+                    adc_table = np.arange(self._nadc[det], dtype=float)
 
                 ring_number = ring_offset - 1
 

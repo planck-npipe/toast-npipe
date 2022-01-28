@@ -66,7 +66,7 @@ class Differentiator():
         for band in range(1, harm + 2):
             fmin = fmax
             # fstep = (1 + band // 4) / 60
-            fstep = np.exp(band / 4).astype(np.int) / 60
+            fstep = np.exp(band / 4).astype(int) / 60
             if band < self._nharm:
                 fmax = fmin + fstep
             else:

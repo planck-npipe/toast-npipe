@@ -35,7 +35,7 @@ class JumpCorrector():
         # Find continuous flagged regions left by the despiker and
         # save the start and stop locations so that we don't falsely
         # detect jumps at the gap boundaries.
-        flagdiff = np.diff(flag.astype(np.int))
+        flagdiff = np.diff(flag.astype(int))
         gap_starts = np.where(flagdiff > 0)[0]
         gap_stops = np.where(flagdiff < 0)[0]
         if flag[0] and gap_starts[0] != 0:
@@ -272,7 +272,7 @@ class JumpCorrector():
         flag_out = flag.copy()
         for peak, _, amplitude in peaks:
             corrected_signal[peak:] -= amplitude
-            flag_out[peak - np.int(tol):peak + np.int(tol)] = True
+            flag_out[peak - int(tol):peak + int(tol)] = True
         return corrected_signal, flag_out
 
     def _correct_for_signal_subtraction(self, good, peaks, phase, nn):

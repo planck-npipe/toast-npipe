@@ -20,7 +20,7 @@ class GlitchFlagger():
         self.fwhm = fwhm
         wbin = self.fwhm
         self.order = 6  # order of signal model across 3 bins
-        nbin_min = np.int(2 * np.pi / np.radians(wbin / 60))
+        nbin_min = int(2 * np.pi / np.radians(wbin / 60))
         nbin = 2
         while nbin < nbin_min:
             nbin *= 2
@@ -145,7 +145,7 @@ class GlitchFlagger():
         subtract a simple trend
         """
         istart = 0
-        step = np.int(60 * self.fsample)
+        step = int(60 * self.fsample)
         while istart < signal.size:
             istop = istart + step
             if istop + step > signal.size:
@@ -230,8 +230,8 @@ class GlitchFlagger():
             return np.std(x)
         xsorted = np.sort(x)
         nx = x.size
-        i1 = np.int(0.25 * nx)
-        i2 = np.int(0.75 * nx)
+        i1 = int(0.25 * nx)
+        i2 = int(0.75 * nx)
         iqr = xsorted[i2] - xsorted[i1]
         rms = iqr * 0.7412
         return rms

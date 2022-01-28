@@ -197,8 +197,8 @@ class ADC_Inverter():
 
         self.adc_rng = 2 ** 16
 
-        self.cnv_fct = np.float(
-            np.size(self.inv_dnl_vct)) / np.float(self.adc_rng)
+        self.cnv_fct = float(
+            np.size(self.inv_dnl_vct)) / float(self.adc_rng)
 
         self.s_phs_arr = (np.arange(self.n_fst_smpl, dtype='int16')
                           + self.s_phs) % self.n_fst_smpl
@@ -269,16 +269,16 @@ class ADC_Inverter():
         corrp_1 = np.zeros(n_pnt_arg)
         corrm_0 = np.zeros(n_pnt_arg)
         corrm_1 = np.zeros(n_pnt_arg)
-        pp_gp = (np.int(indx_rng_mod_dbl_arg) + 2 * i_hrm_arg
-                 + np.int(prty_vct_arg[0])) % 18288
+        pp_gp = (int(indx_rng_mod_dbl_arg) + 2 * i_hrm_arg
+                 + int(prty_vct_arg[0])) % 18288
 
         rw_4K_arry = np.zeros(self.n_fst_smpl)
-        inv_hlf_fst_smpl_dbl = 2.0 / np.float(self.n_fst_smpl)
+        inv_hlf_fst_smpl_dbl = 2.0 / float(self.n_fst_smpl)
 
         for i_hrm in np.arange(np.size(hrm_4k_vct_arg)):
             phs_4k_hrm = hrm_4k_vct_arg[i_hrm] * self.alph_hrm_rw
             for i_fst in np.arange(self.n_fst_smpl):
-                phs_4k_fst = (np.float(i_fst) * inv_hlf_fst_smpl_dbl + pp_gp) \
+                phs_4k_fst = (float(i_fst) * inv_hlf_fst_smpl_dbl + pp_gp) \
                              * phs_4k_hrm
                 rw_4K_arry[i_fst] += (
                     rw_4k_re_vct_arg[i_hrm] * np.cos(phs_4k_fst)
@@ -288,7 +288,7 @@ class ADC_Inverter():
         for i_fst in np.arange(self.n_hlf_fst_smpl):
             rw_w = rw_cst_vct_arg[self.s_phs_arr[i_fst]] + rw_4K_arry[i_fst] \
                    + sgnl * self.rw_gn_vct[self.s_phs_arr[i_fst]]
-            rw_m = self.inv_dnl_vct[np.int((rw_w + 32768) * self.cnv_fct)]
+            rw_m = self.inv_dnl_vct[int((rw_w + 32768) * self.cnv_fct)]
             corrp_0[0] += rw_m
             corrp_1[0] += rw_w
 
@@ -297,14 +297,14 @@ class ADC_Inverter():
                 + sgnl * self.rw_gn_vct[
                     self.s_phs_arr[i_fst + self.n_hlf_fst_smpl]]
 
-            rw_m = self.inv_dnl_vct[np.int((rw_w + 32768) * self.cnv_fct)]
+            rw_m = self.inv_dnl_vct[int((rw_w + 32768) * self.cnv_fct)]
             corrm_0[0] += rw_m
             corrm_1[0] += rw_w
         sgnl = 8.0e5
         for i_fst in np.arange(self.n_hlf_fst_smpl):
             rw_w = rw_cst_vct_arg[self.s_phs_arr[i_fst]] + rw_4K_arry[i_fst] \
                    + sgnl * self.rw_gn_vct[self.s_phs_arr[i_fst]]
-            rw_m = self.inv_dnl_vct[np.int((rw_w + 32768) * self.cnv_fct)]
+            rw_m = self.inv_dnl_vct[int((rw_w + 32768) * self.cnv_fct)]
             corrp_0[n_pnt_arg - 1] += rw_m
             corrp_1[n_pnt_arg - 1] += rw_w
 
@@ -312,7 +312,7 @@ class ADC_Inverter():
                 + rw_4K_arry[i_fst + self.n_hlf_fst_smpl] \
                 + sgnl * self.rw_gn_vct[
                     self.s_phs_arr[i_fst + self.n_hlf_fst_smpl]]
-            rw_m = self.inv_dnl_vct[np.int((rw_w + 32768) * self.cnv_fct)]
+            rw_m = self.inv_dnl_vct[int((rw_w + 32768) * self.cnv_fct)]
             corrm_0[n_pnt_arg - 1] += rw_m
             corrm_1[n_pnt_arg - 1] += rw_w
 
@@ -324,7 +324,7 @@ class ADC_Inverter():
                        + rw_4K_arry[i_fst] \
                        + sgnl * self.rw_gn_vct[self.s_phs_arr[i_fst]]
                     rw_m = self.inv_dnl_vct[
-                        np.int((rw_w + 32768) * self.cnv_fct)]
+                        int((rw_w + 32768) * self.cnv_fct)]
                     corrp_0[i_pnt] += rw_m
                     corrp_1[i_pnt] += rw_w
 
@@ -334,7 +334,7 @@ class ADC_Inverter():
                         + sgnl * self.rw_gn_vct[
                             self.s_phs_arr[i_fst + self.n_hlf_fst_smpl]]
                     rw_m = self.inv_dnl_vct[
-                        np.int((rw_w + 32768) * self.cnv_fct)]
+                        int((rw_w + 32768) * self.cnv_fct)]
                     corrm_0[i_pnt] += rw_m
                     corrm_1[i_pnt] += rw_w
         else:
@@ -346,7 +346,7 @@ class ADC_Inverter():
                        + rw_4K_arry[i_fst] * abunchofones \
                        + sgnl * self.rw_gn_vct[self.s_phs_arr[i_fst]]
                 rw_m = self.inv_dnl_vct[((rw_w + 32768)
-                                         * self.cnv_fct).astype(np.int)]
+                                         * self.cnv_fct).astype(int)]
                 corrp_0[i_pnt] += rw_m
                 corrp_1[i_pnt] += rw_w
 
@@ -357,12 +357,12 @@ class ADC_Inverter():
                     + sgnl * self.rw_gn_vct[
                         self.s_phs_arr[i_fst + self.n_hlf_fst_smpl]]
                 rw_m = self.inv_dnl_vct[((rw_w + 32768)
-                                         * self.cnv_fct).astype(np.int)]
+                                         * self.cnv_fct).astype(int)]
                 corrm_0[i_pnt] += rw_m
                 corrm_1[i_pnt] += rw_w
         slctp = np.zeros(n_dt_hrm_arg, dtype='int')
         n_dt_rw_18 = np.size(rw_dt_arg) - 18
-        offst_tmp = 2 * i_hrm_arg + np.int(prty_vct_arg[0])
+        offst_tmp = 2 * i_hrm_arg + int(prty_vct_arg[0])
         slctp[0] = offst_tmp
         slctp[1] = offst_tmp + 1
         i_tmp = 1
@@ -424,14 +424,14 @@ class ADC_Inverter():
 
         """
         # half the number of samples in a fast sample chunk
-        n_hlf_pnt = np.float(self.n_pnt_sgnl) / 2
+        n_hlf_pnt = float(self.n_pnt_sgnl) / 2
 
         n_dt_hrm = np.size(raw_data_in) / 9 + 4
 
         # shift data
         result = raw_data_in.copy() - 40 * 2 ** 15
 
-        result = result.astype(np.float)
+        result = result.astype(float)
 
         for i_hrm in np.arange(self.n_hrm_rw):
             # native python

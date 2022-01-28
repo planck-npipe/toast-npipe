@@ -197,7 +197,7 @@ class TauDeconvolver():
                               / norm
                 else:
                     nfreq = len(freq)
-                    nfreq_task = np.int(np.ceil(nfreq / self.ntask))
+                    nfreq_task = int(np.ceil(nfreq / self.ntask))
                     # First frequency must be zero for normalization
                     my_freq = np.hstack(
                         [[0.0],
@@ -230,7 +230,7 @@ class TauDeconvolver():
         """
         Extract the center of the kernel
         """
-        ind = np.abs(np.arange(kernel.size) - center, dtype=np.int)
+        ind = np.abs(np.arange(kernel.size) - center, dtype=int)
         kernel = np.abs(kernel) > np.abs(np.amax(kernel)) * tol
         wkernel = np.amax(kernel * ind)
         ind = slice(center - wkernel, center + wkernel + 1)

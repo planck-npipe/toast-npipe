@@ -163,8 +163,8 @@ class SkyModel():
             npix_in = hp.nside2npix(nside_in)
             my_pix_in = self.get_my_pix(nside_in)
             for m in maps_in:
-                my_outmap = np.zeros(npix_in, dtype=np.float)
-                outmap = np.zeros(npix_in, dtype=np.float)
+                my_outmap = np.zeros(npix_in, dtype=float)
+                outmap = np.zeros(npix_in, dtype=float)
                 my_outmap[my_pix_in] = m
                 self.comm.Allreduce(my_outmap, outmap)
                 del my_outmap
@@ -206,9 +206,9 @@ class SkyModel():
             npix_in = hp.nside2npix(nside_in)
             my_pix_in = self.get_my_pix(nside_in)
             for (qmap, umap) in maps_in:
-                my_mapout = np.zeros(npix_in, dtype=np.float)
-                qmapout = np.zeros(npix_in, dtype=np.float)
-                umapout = np.zeros(npix_in, dtype=np.float)
+                my_mapout = np.zeros(npix_in, dtype=float)
+                qmapout = np.zeros(npix_in, dtype=float)
+                umapout = np.zeros(npix_in, dtype=float)
                 my_mapout[my_pix_in] = qmap
                 self.comm.Allreduce(my_mapout, qmapout)
                 my_mapout[my_pix_in] = umap
@@ -252,7 +252,7 @@ class SkyModel():
                 with pf.open(self.file_sync, 'readonly') as h:
                     self.sync_psd_freq = h[2].data.field(0)
                     self.sync_psd = h[2].data.field(1)
-                    self.sync_nu_ref = np.float(
+                    self.sync_nu_ref = float(
                         h[1].header['nu_ref'].split()[0]) * 1e-3  # To GHz
                     self.sync_fwhm = h[1].header['fwhm']
                 self.sync_As = hp.read_map(
@@ -295,7 +295,7 @@ class SkyModel():
             try:
                 # Try old format first
                 with pf.open(self.file_sync_pol) as h:
-                    self.sync_pol_nu_ref = np.float(
+                    self.sync_pol_nu_ref = float(
                         h[1].header['nu_ref'].split()[0])  # In GHz
                     self.sync_pol_fwhm = h[1].header['fwhm']
                 self.sync_As_Q, self.sync_As_U = hp.read_map(
@@ -391,11 +391,11 @@ class SkyModel():
                 with pf.open(self.file_ame) as h:
                     self.ame_fwhm = h[1].header['fwhm']
                     # All frequencies are in GHz
-                    self.ame_nu_ref1 = np.float(
+                    self.ame_nu_ref1 = float(
                         h[1].header['nu_ref'].split()[0])
-                    self.ame_nu_ref2 = np.float(
+                    self.ame_nu_ref2 = float(
                         h[2].header['nu_ref'].split()[0])
-                    self.ame_nu_p_2 = np.float(h[2].header['nu_p'].split()[0])
+                    self.ame_nu_p_2 = float(h[2].header['nu_p'].split()[0])
                     self.ame_psd_freq = h[3].data.field(0)
                     self.ame_psd = h[3].data.field(1)
                 self.ame_1, self.ame_nu_p_1 = hp.read_map(
@@ -450,7 +450,7 @@ class SkyModel():
                 # Try old format first
                 with pf.open(self.file_dust) as h:
                     self.dust_fwhm = h[1].header['fwhm']
-                    self.dust_nu_ref = np.float(
+                    self.dust_nu_ref = float(
                         h[1].header['nu_ref'].split()[0])  # in GHz
                 self.dust_Ad, self.dust_temp, self.dust_beta = hp.read_map(
                     self.file_dust, [0, 3, 6], verbose=False, dtype=DTYPE,
@@ -489,7 +489,7 @@ class SkyModel():
                 # Try old format first
                 with pf.open(self.file_dust_pol) as h:
                     self.dust_pol_fwhm = h[1].header['fwhm']
-                    self.dust_pol_nu_ref = np.float(
+                    self.dust_pol_nu_ref = float(
                         h[1].header['nu_ref'].split()[0])  # in GHz
                 self.dust_temp_pol = None
                 self.dust_beta_pol = None
@@ -846,8 +846,8 @@ class SkyModel():
         # Gather the pieces, each process gets a copy of the full map
 
         my_pix = self.get_my_pix(self.nside)
-        my_outmap = np.zeros([3, self.npix], dtype=np.float)
-        outmap = np.zeros([3, self.npix], dtype=np.float)
+        my_outmap = np.zeros([3, self.npix], dtype=float)
+        outmap = np.zeros([3, self.npix], dtype=float)
         my_outmap[0, my_pix] = my_mtot
         my_outmap[1, my_pix] = my_mtot_Q
         my_outmap[2, my_pix] = my_mtot_U

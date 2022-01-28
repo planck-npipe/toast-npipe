@@ -150,7 +150,7 @@ class OpPreproc(toast.Operator):
         self.intense_threshold = intense_threshold
         self._imo = IMO(imofile)
         self._freq = freq
-        self._lfi_mode = np.int(freq) < 100
+        self._lfi_mode = int(freq) < 100
         self._bg_map_path = bg_map_path
         self._bg_pol = bg_pol
         self._bg_has_dipole = bg_has_dipole
@@ -362,23 +362,23 @@ class OpPreproc(toast.Operator):
         loop_timer.start()
 
         dtype = [
-            ('ring_number', np.int), ('start_time', np.float),
-            ('start_index', np.int),
-            ('glitch_frac', np.float), ('njump', np.int),
-            ('total_rms', np.float), ('signal_rms', np.float),
-            ('noise_rms', np.float), ('noise_offsetND', np.float),
-            ('gain0', np.float), ('gain1', np.float),
-            ('rms0', np.float), ('rms1', np.float),
-            ('total_frac', np.float), ('sso_frac', np.float),
-            ('pnt_frac', np.float), ('mask_frac', np.float),
-            ('bad_frac', np.float), ('minval', np.float), ('maxval', np.float),
-            ('mean', np.float), ('median', np.float), ('rms', np.float),
+            ('ring_number', int), ('start_time', float),
+            ('start_index', int),
+            ('glitch_frac', float), ('njump', int),
+            ('total_rms', float), ('signal_rms', float),
+            ('noise_rms', float), ('noise_offsetND', float),
+            ('gain0', float), ('gain1', float),
+            ('rms0', float), ('rms1', float),
+            ('total_frac', float), ('sso_frac', float),
+            ('pnt_frac', float), ('mask_frac', float),
+            ('bad_frac', float), ('minval', float), ('maxval', float),
+            ('mean', float), ('median', float), ('rms', float),
             ('failed', np.bool), ('outlier', np.bool),
             ('despikererror', np.bool), ('timeout', np.bool)]
         for linefreq in [10, 20, 30, 40, 50, 60, 70, 80,
                          17, 16, 25, 43, 46, 48, 57]:
-            dtype += [('cos_ampl_{:02}Hz'.format(linefreq), np.float),
-                      ('sin_ampl_{:02}Hz'.format(linefreq), np.float)]
+            dtype += [('cos_ampl_{:02}Hz'.format(linefreq), float),
+                      ('sin_ampl_{:02}Hz'.format(linefreq), float)]
 
         ringinfos = np.recarray([self.nring, ], dtype=dtype)
 
@@ -724,7 +724,7 @@ class OpPreproc(toast.Operator):
         if np.sum(nring_left_all) == 0:
             # Special signal: all rings processed
             return None, None
-        rank_all = np.arange(self.comm.size, dtype=np.int)
+        rank_all = np.arange(self.comm.size, dtype=int)
         available = rank_all[nring_left_all == 0]
         need_help = rank_all[nring_left_all > 1]
         nring_left_tot = np.sum(nring_left_all)
@@ -742,7 +742,7 @@ class OpPreproc(toast.Operator):
             helpers_per_task = 1000000
         else:
             # Try to balance the number of helpers per task
-            helpers_per_task = np.int(np.ceil(available.size / need_help.size))
+            helpers_per_task = int(np.ceil(available.size / need_help.size))
         last = 0
         for helpee in need_help:
             nassign = min(nring_left_all[helpee] - 1, helpers_per_task)
@@ -1236,7 +1236,7 @@ class OpPreproc(toast.Operator):
             # Construct a low frequency noise estimate and highpass
             # the signal with it
             noise_estimate = flagged_running_average(
-                job.sig - signal_estimate, job.flg, np.int(1000 * job.fsample))
+                job.sig - signal_estimate, job.flg, int(1000 * job.fsample))
             # Disable the highpass for now
             # job.sig -= noise_estimate
 
@@ -1464,42 +1464,42 @@ class OpPreproc(toast.Operator):
         fwhm = tod.RIMO[det].fwhm
 
         dtype = [
-            ('ring_number', np.int), ('start_time', np.float),
-            ('start_index', np.int),
-            ('glitch_frac', np.float), ('njump', np.int),
-            ('total_rms', np.float), ('signal_rms', np.float),
-            ('noise_rms', np.float), ('noise_offsetND', np.float),
-            ('gain0', np.float), ('gain1', np.float),
-            ('rms0', np.float), ('rms1', np.float),
-            ('total_frac', np.float), ('sso_frac', np.float),
-            ('pnt_frac', np.float), ('mask_frac', np.float),
-            ('bad_frac', np.float), ('minval', np.float), ('maxval', np.float),
-            ('mean', np.float), ('median', np.float), ('rms', np.float),
-            ('spinrate', np.float), ('spinrate_good', np.float),
+            ('ring_number', int), ('start_time', float),
+            ('start_index', int),
+            ('glitch_frac', float), ('njump', int),
+            ('total_rms', float), ('signal_rms', float),
+            ('noise_rms', float), ('noise_offsetND', float),
+            ('gain0', float), ('gain1', float),
+            ('rms0', float), ('rms1', float),
+            ('total_frac', float), ('sso_frac', float),
+            ('pnt_frac', float), ('mask_frac', float),
+            ('bad_frac', float), ('minval', float), ('maxval', float),
+            ('mean', float), ('median', float), ('rms', float),
+            ('spinrate', float), ('spinrate_good', float),
             ('failed', np.bool), ('outlier', np.bool),
             ('despikererror', np.bool), ('timeout', np.bool)]
 
         if self._lfi_mode:
             for diode in [0, 1]:
                 for filterpar in ['weight', 'R', 'Rsigma', 'Ralpha']:
-                    dtype.append(('{}{}'.format(filterpar, diode), np.float))
+                    dtype.append(('{}{}'.format(filterpar, diode), float))
             for linefreq in np.arange(1, int(fsample // 2 + 1)):
                 for alias in ['_low', '', '_high']:
                     for col in ['', 0, 1, 2, 3]:
                         dtype += [
                             ('cos_ampl_{:02}Hz{}{}'.format(
-                                linefreq, alias, col), np.float),
+                                linefreq, alias, col), float),
                             ('sin_ampl_{:02}Hz{}{}'.format(
-                                linefreq, alias, col), np.float)]
+                                linefreq, alias, col), float)]
         else:
-            dtype.append(('weight1', np.float))
-            dtype.append(('weight2', np.float))
+            dtype.append(('weight1', float))
+            dtype.append(('weight2', float))
             for filterpar in ['R', 'Rfcut']:
-                dtype.append((filterpar, np.float))
+                dtype.append((filterpar, float))
             for linefreq in [10, 20, 30, 40, 50, 60, 70, 80,
                              17, 16, 25, 43, 46, 48, 57]:
-                dtype += [('cos_ampl_{:02}Hz'.format(linefreq), np.float),
-                          ('sin_ampl_{:02}Hz'.format(linefreq), np.float)]
+                dtype += [('cos_ampl_{:02}Hz'.format(linefreq), float),
+                          ('sin_ampl_{:02}Hz'.format(linefreq), float)]
 
         ringinfos = np.recarray([self.nring, ], dtype=dtype)
 

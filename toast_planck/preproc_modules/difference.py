@@ -194,7 +194,7 @@ class Differencer():
         # Finally, construct and remove a 4-minute thermal baseline
         thermal = flagged_running_average(
             weight0 * cleaned0 + weight1 * cleaned1, flag,
-            np.int(240 * fsample))
+            int(240 * fsample))
         signal -= thermal
         """
 

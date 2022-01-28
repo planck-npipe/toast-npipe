@@ -372,7 +372,7 @@ class Exchange(TOD):
         tod.allrings = [Interval(
             start=self.allrings[ring].start, stop=self.allrings[ring].stop,
             first=0, last=n)]
-        offset = np.sum(sizes[:ring], dtype=np.int)
+        offset = np.sum(sizes[:ring], dtype=int)
         tod.globalfirst += offset
         # Crop to the list of ACMS modes and adjust the start index
         modes = []

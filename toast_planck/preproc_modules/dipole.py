@@ -148,7 +148,7 @@ class Dipoler():
                         det = '{}-{}{}'.format(freq, row[0], row[1].lower())
                     detdict = {}
                     for key, value in zip(keys, row[2:]):
-                        detdict[key] = np.float(value)
+                        detdict[key] = float(value)
                     self.fsl_params[det] = detdict
             if self.symmetrize_4pi:
                 # Average the 4pi parameters in each horn
