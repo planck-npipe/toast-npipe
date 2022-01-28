@@ -46,7 +46,7 @@ def main():
                         help='Perform a simulation instead')
     parser.add_argument('--rimo', required=True, help='RIMO file')
     parser.add_argument('--imo', required=True, help='IMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--debug', dest='debug', default=False,
                         action='store_true',
                         help='Write data distribution info to file')
@@ -63,18 +63,18 @@ def main():
     parser.add_argument('--effdir_pntg', required=False,
                         help='Input Exchange Format File directory for pointing')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
-    parser.add_argument('--odfirst', required=False, default=None, type=np.int,
+    parser.add_argument('--odfirst', required=False, default=None, type=int,
                         help='First OD to use')
-    parser.add_argument('--odlast', required=False, default=None, type=np.int,
+    parser.add_argument('--odlast', required=False, default=None, type=int,
                         help='Last OD to use')
     parser.add_argument('--ringfirst', required=False, default=None,
-                        type=np.int, help='First ring to use')
-    parser.add_argument('--ringlast', required=False, default=None, type=np.int,
+                        type=int, help='First ring to use')
+    parser.add_argument('--ringlast', required=False, default=None, type=int,
                         help='Last ring to use')
     parser.add_argument('--obtfirst', required=False, default=None,
-                        type=np.float, help='First OBT to use')
+                        type=float, help='First OBT to use')
     parser.add_argument('--obtlast', required=False, default=None,
-                        type=np.float, help='Last OBT to use')
+                        type=float, help='Last OBT to use')
     parser.add_argument('--madampar', required=False, default=None,
                         help='Madam parameter file')
     parser.add_argument('--out', required=False, default='.',
@@ -90,10 +90,10 @@ def main():
                         help='Output directory for reproc')
     parser.add_argument('--effdir_out_madam', required=False,
                         help='Output directory for Madam')
-    parser.add_argument('--nside', required=False, default=1024, type=np.int,
+    parser.add_argument('--nside', required=False, default=1024, type=int,
                         help='Pipeline resolution')
     parser.add_argument('--bg_map', required=False, help='Map template')
-    parser.add_argument('--bg_nside', required=False, default=1024, type=np.int,
+    parser.add_argument('--bg_nside', required=False, default=1024, type=int,
                         help='Map template resolution')
     parser.add_argument('--bg_pol', dest='bg_pol', required=False,
                         default=False, action='store_true',
@@ -102,47 +102,47 @@ def main():
                         default=False, action='store_true',
                         help='Background map includes the dipole')
     parser.add_argument('--calfile', required=False, help='Calibration file')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
-    parser.add_argument('--detmask', required=False, type=np.int,
+    parser.add_argument('--detmask', required=False, type=int,
                         help='Detector flag mask')
-    parser.add_argument('--pntmask', required=False, default=2, type=np.int,
+    parser.add_argument('--pntmask', required=False, default=2, type=int,
                         help='Pointing flag mask')
-    parser.add_argument('--ssomask', required=False, type=np.int,
+    parser.add_argument('--ssomask', required=False, type=int,
                         help='SSO flag mask')
     parser.add_argument('--preproc_mask', required=False,
                         help='Preproc processing mask file')
     parser.add_argument('--effdir_dark', required=False,
                         help='Input Exchange Format File directory for dark '
                         'bolometer data')
-    parser.add_argument('--darkmask', required=False, default=1, type=np.int,
+    parser.add_argument('--darkmask', required=False, default=1, type=int,
                         help='Dark flag mask')
     parser.add_argument('--preproc_dark', dest='preproc_dark', default=False,
                         action='store_true', help='Preprocess dark data')
-    parser.add_argument('--nbin', required=False, default=10000, type=np.int,
+    parser.add_argument('--nbin', required=False, default=10000, type=int,
                         help='Number of phase bins')
     parser.add_argument('--jump_filter_len', required=False, default=40000,
-                        type=np.int, help='Jump filter length')
+                        type=int, help='Jump filter length')
     parser.add_argument('--despike', dest='despike', default=False,
                         action='store_true', help='Use despike instead of '
                         'glitch_remover')
     parser.add_argument('--despiker_timeout', required=False, default=60.,
-                        type=np.float, help='Maximum time allowed for despiker')
+                        type=float, help='Maximum time allowed for despiker')
     parser.add_argument('--even_correction', required=False,
                         help='Even NL correction file.')
     parser.add_argument('--odd_correction', required=False,
                         help='Odd NL correction file.')
     parser.add_argument('--measure_ADC', dest='measure_ADC', default=False,
                         action='store_true', help='Measure ADC NL')
-    parser.add_argument('--niter_ADC', default=1, type=np.int,
+    parser.add_argument('--niter_ADC', default=1, type=int,
                         help='Number of ADC NL iterations')
-    parser.add_argument('--delta_ADC', default=0.1, type=np.float,
+    parser.add_argument('--delta_ADC', default=0.1, type=float,
                         help='Width of ADC bin in ADU')
-    parser.add_argument('--nphase4k', required=False, default=2, type=np.int,
+    parser.add_argument('--nphase4k', required=False, default=2, type=int,
                         help='Number of 4K cooler phases to measure ADC NL for.')
-    parser.add_argument('--nharm', required=False, default=20, type=np.int,
+    parser.add_argument('--nharm', required=False, default=20, type=int,
                         help='Number of passbands in differentiation.')
     parser.add_argument('--band_calibrate', dest='band_calibrate',
                         default=False, action='store_true',
@@ -158,7 +158,7 @@ def main():
     parser.add_argument('--make_rings', dest='make_rings', default=False,
                         action='store_true', help='Compile ringsets.')
     parser.add_argument('--nside_ring', required=False, default=128,
-                        type=np.int, help='Ringset resolution')
+                        type=int, help='Ringset resolution')
     parser.add_argument('--ring_root', required=False, default='ringset',
                         help='Root filename for ringsets (setting to empty '
                         'disables ringset output).')
@@ -171,7 +171,7 @@ def main():
     parser.add_argument('--swap', dest='swap', default=False,
                         action='store_true',
                         help='Use swap files to reduce memory footprint.')
-    parser.add_argument('--margin', required=False, default=1000, type=np.int,
+    parser.add_argument('--margin', required=False, default=1000, type=int,
                         help='Preprocessing margin.')
     parser.add_argument('--CO', required=False,
                         help='CO map file for bandpass correction.')
@@ -190,14 +190,14 @@ def main():
     parser.add_argument('--freefree', required=False,
                         help='Free-free map file for bandpass correction.')
     parser.add_argument('--reproc_nside', required=False, default=512,
-                        type=np.int, help='Reprocessing resolution')
+                        type=int, help='Reprocessing resolution')
     parser.add_argument('--bandpass_nside', required=False, default=128,
-                        type=np.int, help='Bandpass template resolution')
+                        type=int, help='Bandpass template resolution')
     parser.add_argument('--bandpass_fwhm', required=False, default=240.,
-                        type=np.float,
+                        type=float,
                         help='Bandpass template smoothing [arc min]')
     parser.add_argument('--bandpass_lmax', required=False, default=256,
-                        type=np.int, help='Bandpass template smoothing lmax')
+                        type=int, help='Bandpass template smoothing lmax')
     parser.add_argument('--reproc_destripe_mask', required=False,
                         help='Reproc destriping mask file')
     parser.add_argument('--reproc_first_calib_mask', required=False,
@@ -209,9 +209,9 @@ def main():
     parser.add_argument('--map_dir', required=False, default='.',
                         help='Map output directory')
     parser.add_argument('--niter_reproc', required=False, default=1,
-                        type=np.int, help='Number of calibration iterations')
+                        type=int, help='Number of calibration iterations')
     parser.add_argument('--niter_reproc_multi', required=False, default=1,
-                         type=np.int,
+                         type=int,
                          help='Number of multi-detector calibration iterations')
     parser.add_argument('--single_cal', dest='single_cal', default=False,
                         action='store_true', help='Single detector calibration')
@@ -220,7 +220,7 @@ def main():
     parser.add_argument('--flag_planets', dest='flag_planets', default=False,
                         action='store_true', help='Derive planet flags')
     parser.add_argument('--planet_flag_radius', required=False, default=2.0,
-                        type=np.float,
+                        type=float,
                         help='New planet flag radius (in FWHM) when '
                         '--flag_planets')
     parser.add_argument('--recalibrate', dest='recalibrate', default=False,
@@ -244,17 +244,17 @@ def main():
                         help='Save single detector template maps from reproc.')
 
     parser.add_argument('--jump_threshold', required=False, default=4.0,
-                        type=np.float, help='Jump detection threshold')
+                        type=float, help='Jump detection threshold')
     parser.add_argument('--forcepol', dest='forcepol', default=False,
                         action='store_true', help='Force polarization template'
                         ' to unity amplitude in reproc.')
-    parser.add_argument('--forcedipo', dest='forcedipo', default=1, type=np.int,
+    parser.add_argument('--forcedipo', dest='forcedipo', default=1, type=int,
                         help='Force orbital dipole template to unity amplitude '
                         'in reproc this multi iteration onwards.')
     parser.add_argument('--forcefsl', dest='forcefsl', default=False,
                         action='store_true', help='Force FSL template(s) to '
                         'unity amplitude in reproc.')
-    parser.add_argument('--pol_deriv', dest='pol_deriv', type=np.int,
+    parser.add_argument('--pol_deriv', dest='pol_deriv', type=int,
                         help='Fit polarization derivative template in reproc '
                         'during and after this multi iteration.')
     parser.add_argument('--bpcorrect', dest='bpcorrect', default=False,
@@ -272,10 +272,10 @@ def main():
     parser.add_argument('--pol_map_bpcorr_path', required=False, help='Path to '
                         'per-detector polarization bandpass mismatch correction'
                         '. DETECTOR will be replaced with the detector name.')
-    parser.add_argument('--sigmalim_cal', required=False, type=np.float,
+    parser.add_argument('--sigmalim_cal', required=False, type=float,
                         help='Gain smoothing noise limit')
     parser.add_argument('--reproc_lowpassfreq', required=False, default=1.0,
-                        type=np.float, help='Polarized destriper lowpass freq.')
+                        type=float, help='Polarized destriper lowpass freq.')
     parser.add_argument('--read_no_signal',  default=False, action='store_true',
                         required=False,
                         help='read no input optical signal for SHDet tests.')
@@ -287,7 +287,7 @@ def main():
                         required=False,
                         help='use ADC in SHDet, returning digits instead '
                         'of volts.')
-    parser.add_argument('--seed', required=False, default=0, type=np.float,
+    parser.add_argument('--seed', required=False, default=0, type=float,
                         help='SHDet random number generator base seed.')
     parser.add_argument('--offset_file', required=False,
                         help='Pre and post modulation offset pickle file. '

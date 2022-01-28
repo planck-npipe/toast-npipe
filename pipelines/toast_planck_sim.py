@@ -50,7 +50,7 @@ def main():
                         action='store_true',
                         help='Do not add simulated noise to the TOD.')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--debug', dest='debug', default=False,
                         action='store_true',
                         help='Write data distribution info to file')
@@ -66,11 +66,11 @@ def main():
     parser.add_argument('--effdir_fsl', required=False,
                         help='Input Exchange Format File directory for '
                         'straylight')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
-    parser.add_argument('--pntflagmask', required=False, default=0, type=np.int,
+    parser.add_argument('--pntflagmask', required=False, default=0, type=int,
                         help='Which OBT flag bits to raise for HCM maneuvers')
     parser.add_argument('--bad_intervals', required=False,
                         help='Path to bad interval file.')
@@ -100,7 +100,7 @@ def main():
                         '.format(mc)')
     parser.add_argument('--madampar', required=False, default=None,
                         help='Madam parameter file')
-    parser.add_argument('--nside', required=False, default=None, type=np.int,
+    parser.add_argument('--nside', required=False, default=None, type=int,
                         help='Madam resolution')
     parser.add_argument('--out', required=False, default='.',
                         help='Output directory')
@@ -108,13 +108,13 @@ def main():
     parser.add_argument('--make_rings', dest='make_rings', default=False,
                         action='store_true', help='Compile ringsets.')
     parser.add_argument('--nside_ring', required=False, default=128,
-                        type=np.int, help='Ringset resolution')
+                        type=int, help='Ringset resolution')
     parser.add_argument('--ring_root', required=False, default='ringset',
                         help='Root filename for ringsets (setting to empty '
                         'disables ringset output).')
-    parser.add_argument('--MC_start', required=False, default=0, type=np.int,
+    parser.add_argument('--MC_start', required=False, default=0, type=int,
                         help='First Monte Carlo noise realization')
-    parser.add_argument('--MC_count', required=False, default=1, type=np.int,
+    parser.add_argument('--MC_count', required=False, default=1, type=int,
                         help='Number of Monte Carlo noise realizations')
     # noise parameters
     parser.add_argument('--noisefile', required=False, default='RIMO',
@@ -139,16 +139,16 @@ def main():
         help='Simulate orbital dipole')
     dipo_parameters_group = parser.add_argument_group('dipole_parameters')
     dipo_parameters_group.add_argument(
-        '--solsys_speed', required=False, type=np.float,
+        '--solsys_speed', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_speed"],
         help='Solar system speed wrt. CMB rest frame in km/s. Default is '
         'Planck 2015 best fit value')
     dipo_parameters_group.add_argument(
-        '--solsys_glon', required=False, type=np.float,
+        '--solsys_glon', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glon"],
         help='Solar system velocity direction longitude in degrees')
     dipo_parameters_group.add_argument(
-        '--solsys_glat', required=False, type=np.float,
+        '--solsys_glat', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glat"],
         help='Solar system velocity direction latitude in degrees')
 

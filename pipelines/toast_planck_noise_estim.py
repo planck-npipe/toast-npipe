@@ -56,7 +56,7 @@ def main():
     parser = argparse.ArgumentParser(description='Planck Ringset making',
                                      fromfile_prefix_chars='@')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--dets', required=False, default=None,
                         help='Detector list (comma separated)')
     parser.add_argument('--nosingle', dest='nosingle', required=False,
@@ -67,9 +67,9 @@ def main():
     parser.add_argument('--effdir_pntg', required=False,
                         help='Input Exchange Format File directory '
                         'for pointing')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
     parser.add_argument('--skymask', required=False, help='Pixel mask file')
     parser.add_argument('--skymap', required=False, help='Sky estimate file')
@@ -87,27 +87,27 @@ def main():
                         'the signal estimate using linear regression.')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
     parser.add_argument('--odfirst', required=False, default=None,
-                        type=np.int, help='First OD to use')
+                        type=int, help='First OD to use')
     parser.add_argument('--odlast', required=False, default=None,
-                        type=np.int, help='Last OD to use')
+                        type=int, help='Last OD to use')
     parser.add_argument('--ringfirst', required=False, default=None,
-                        type=np.int, help='First ring to use')
+                        type=int, help='First ring to use')
     parser.add_argument('--ringlast', required=False, default=None,
-                        type=np.int, help='Last ring to use')
+                        type=int, help='Last ring to use')
     parser.add_argument('--obtfirst', required=False, default=None,
-                        type=np.float, help='First OBT to use')
+                        type=float, help='First OBT to use')
     parser.add_argument('--obtlast', required=False, default=None,
-                        type=np.float, help='Last OBT to use')
+                        type=float, help='Last OBT to use')
     parser.add_argument('--out', required=False, default='.',
                         help='Output directory')
     parser.add_argument('--nbin_psd', required=False, default=1000,
-                        type=np.int, help='Number of logarithmically '
+                        type=int, help='Number of logarithmically '
                         'distributed spectral bins to write.')
     parser.add_argument('--lagmax', required=False, default=100000,
-                        type=np.int, help='Maximum lag to evaluate for the '
+                        type=int, help='Maximum lag to evaluate for the '
                         'autocovariance function [samples].')
     parser.add_argument('--stationary_period', required=False, default=86400.,
-                        type=np.float,
+                        type=float,
                         help='Length of a stationary interval [seconds].')
     # Dipole parameters
     dipogroup = parser.add_mutually_exclusive_group()

@@ -104,7 +104,7 @@ def measure_transfer_function(phase, signal, correction, model, fwhm):
     # Measure roughly where to set the cut-off frequency
     # p0 = np.sum(np.abs(fsignal)**2)
     p0 = np.sum(np.abs(fmodel) ** 2)
-    fcut = np.int(1 / (fwhm / (2 * np.pi) * 60))
+    fcut = int(1 / (fwhm / (2 * np.pi) * 60))
     print('Starting fcut fit at {:.2f} Hz'.format(fcut))
     while fcut < 100:
         lp = lowpass(freq, fcut)
@@ -156,7 +156,7 @@ def bin_transfer_function(freq, tf):
         binfreq.append(np.mean(freq[ind]))
         bintf.append(np.mean(tf[ind]))
         # istart = istop
-        istart += np.int((istop - istart) // 10 + 1)
+        istart += int((istop - istart) // 10 + 1)
     binfreq = np.array(binfreq)
     bintf = np.array(bintf)
     # Extrapolate the lowest bin to zero frequency and normalize the
@@ -194,11 +194,11 @@ def bin_adaptively(phase, signal, model, fwhm):
     """
     wbin = 2 * np.pi / phase.size
     nbin_fwhm = fwhm / wbin
-    win = scipy.signal.hann(np.int(4 * nbin_fwhm / 2) * 2 + 1)
+    win = scipy.signal.hann(int(4 * nbin_fwhm / 2) * 2 + 1)
     win /= np.sum(win)
     smooth_signal = scipy.signal.fftconvolve(
         signal - model, win, mode='same') + model
-    win = scipy.signal.hann(np.int(1 * nbin_fwhm / 2) * 2 + 1)
+    win = scipy.signal.hann(int(1 * nbin_fwhm / 2) * 2 + 1)
     win /= np.sum(win)
     less_smooth_signal = scipy.signal.fftconvolve(
         signal - model, win, mode='same') + model

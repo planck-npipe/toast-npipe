@@ -183,9 +183,9 @@ def my_create_bololist_w8(detset, RIMO):
     """
     dets = list_planck(detset)
     ndet = len(dets)
-    w8 = np.zeros(ndet, dtype=np.float)
+    w8 = np.zeros(ndet, dtype=float)
     psb = np.zeros(ndet, dtype=np.bool)
-    rho = np.zeros(ndet, dtype=np.float)
+    rho = np.zeros(ndet, dtype=float)
     for idet, det in enumerate(dets):
         if det[-1] in 'abMS':
             horn = det[:-1]
@@ -252,7 +252,7 @@ def get_blm_det(blmfile, det, lmax=None, mmax=None):
         print(prefix, RED_COLOR, 'WARNING: Polarized Blm not found in %s'
               '' % (fitsfile), NO_COLOR, flush=True)
 
-    ls = np.array(np.floor(np.sqrt(Tix - 1)), dtype=np.int)
+    ls = np.array(np.floor(np.sqrt(Tix - 1)), dtype=int)
     ms = Tix - ls*ls - ls - 1
 
     if lmax is None:
@@ -648,7 +648,7 @@ def make_hit_vectors(
     nd = len(w8)
     # number of sampled pixels
     npq, nhigh_, skip_, sample_ = count_pix(pixels)
-    hit = np.zeros(npq, dtype=np.float)
+    hit = np.zeros(npq, dtype=float)
     hs = np.zeros((npq, 3), dtype=np.complex)
     hv = np.zeros((nd, smax+1, npq), dtype=np.complex)
     # do polarized hit matrix only if at least 3 PSBs
@@ -1175,7 +1175,7 @@ if __name__ == '__main__':
     #if len(args) == 0:
     #    args = ['']
     #if len(args) >= 2:
-    #    period = np.int(args[1])
+    #    period = int(args[1])
     #else:
     #    period = 6
     #print(args[0], period)

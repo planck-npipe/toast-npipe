@@ -64,10 +64,10 @@ def main():
     parser = argparse.ArgumentParser(description='Simple MADAM Mapmaking',
                                      fromfile_prefix_chars='@')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
-    parser.add_argument('--nside', required=False, type=np.int,
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
+    parser.add_argument('--nside', required=False, type=int,
                         default=512, help='Map resolution')
-    parser.add_argument('--nside_cross', required=False, type=np.int,
+    parser.add_argument('--nside_cross', required=False, type=int,
                         default=512, help='Destriping resolution')
     parser.add_argument('--debug', dest='debug', default=False,
                         action='store_true',
@@ -91,27 +91,27 @@ def main():
                         help='Output directory for destriped TOD, LFI diode 0')
     parser.add_argument('--effdir_out_diode1', required=False,
                         help='Output directory for destriped TOD, LFI diode 1')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
-    parser.add_argument('--pntflagmask', required=False, default=0, type=np.int,
+    parser.add_argument('--pntflagmask', required=False, default=0, type=int,
                         help='Pointing flag mask')
     parser.add_argument('--bad_intervals', required=False,
                         help='Path to bad interval file.')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
-    parser.add_argument('--odfirst', required=False, default=None, type=np.int,
+    parser.add_argument('--odfirst', required=False, default=None, type=int,
                         help='First OD to use')
-    parser.add_argument('--odlast', required=False, default=None, type=np.int,
+    parser.add_argument('--odlast', required=False, default=None, type=int,
                         help='Last OD to use')
     parser.add_argument('--ringfirst', required=False, default=None,
                         help='First ring to use (can be a list)')
     parser.add_argument('--ringlast', required=False, default=None,
                         help='Last ring to use (can be a list)')
     parser.add_argument('--obtfirst', required=False, default=None,
-                        type=np.float, help='First OBT to use')
+                        type=float, help='First OBT to use')
     parser.add_argument('--obtlast', required=False, default=None,
-                        type=np.float, help='Last OBT to use')
+                        type=float, help='Last OBT to use')
     parser.add_argument('--madampar', required=False, default=None,
                         help='Madam parameter file')
     parser.add_argument('--out', required=False, default='.',

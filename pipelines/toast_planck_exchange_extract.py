@@ -170,7 +170,7 @@ def main():
     parser = argparse.ArgumentParser(description='Simple MADAM Mapmaking',
                                      fromfile_prefix_chars='@')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--debug', dest='debug', default=False,
                         action='store_true',
                         help='Write data distribution info to file')
@@ -183,31 +183,31 @@ def main():
                         'for pointing')
     parser.add_argument('--coord', default='G',
                         help='Coordinate system, "G", "E" or "C"')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
-    parser.add_argument('--pntflagmask', required=False, default=0, type=np.int,
+    parser.add_argument('--pntflagmask', required=False, default=0, type=int,
                         help='Pointing flag mask')
     parser.add_argument('--bad_intervals', required=False,
                         help='Path to bad interval file.')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
-    parser.add_argument('--odfirst', required=False, default=None, type=np.int,
+    parser.add_argument('--odfirst', required=False, default=None, type=int,
                         help='First OD to use')
-    parser.add_argument('--odlast', required=False, default=None, type=np.int,
+    parser.add_argument('--odlast', required=False, default=None, type=int,
                         help='Last OD to use')
     parser.add_argument('--ringfirst', required=False, default=None,
                         help='First ring to use (can be a list)')
     parser.add_argument('--ringlast', required=False, default=None,
                         help='Last ring to use (can be a list)')
     parser.add_argument('--obtfirst', required=False, default=None,
-                        type=np.float, help='First OBT to use')
+                        type=float, help='First OBT to use')
     parser.add_argument('--obtlast', required=False, default=None,
-                        type=np.float, help='Last OBT to use')
+                        type=float, help='Last OBT to use')
     parser.add_argument('--out', required=False, default='.',
                         help='Output directory')
     parser.add_argument('--catalog', required=True, help='Target catalog file')
-    parser.add_argument('--radius', required=True, type=np.float,
+    parser.add_argument('--radius', required=True, type=float,
                         help='Search radius about the source [arc min]')
     parser.add_argument('--mask', required=False,
                         help='Mask defining region of the sky to accept')

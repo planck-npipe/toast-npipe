@@ -22,7 +22,7 @@ def bootstrap(x, niter=10):
     nx = x.size
     means = np.zeros(niter)
     for iiter in range(niter):
-        ind = (np.random.rand(nx)*nx).astype(np.int)
+        ind = (np.random.rand(nx)*nx).astype(int)
         means[iiter] = np.mean(x[ind])
     meanmean = np.mean(means)
     meanerr = np.std(means)

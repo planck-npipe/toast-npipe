@@ -19,7 +19,7 @@ noise = {}
 with open(fn_noise) as noisefile:
     for line in noisefile:
         det, sigma = line.split()
-        noise[det] = np.float(sigma)
+        noise[det] = float(sigma)
 
 # average LFI
 

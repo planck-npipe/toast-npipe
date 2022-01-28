@@ -47,7 +47,7 @@ def main():
     parser = argparse.ArgumentParser(description='Simple dipole pipeline',
                                      fromfile_prefix_chars='@')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--dets', required=False, default=None,
                         help='Detector list (comma separated)')
     parser.add_argument('--effdir', required=True,
@@ -55,11 +55,11 @@ def main():
     parser.add_argument('--effdir_pntg', required=False,
                         help='Input Exchange Format File directory for '
                         'pointing')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
-    parser.add_argument('--pntflagmask', required=False, default=0, type=np.int,
+    parser.add_argument('--pntflagmask', required=False, default=0, type=int,
                         help='Which OBT flag bits to raise for HCM maneuvers')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
     parser.add_argument('--odfirst', required=False, default=None,
@@ -92,16 +92,16 @@ def main():
         help='Simulate orbital dipole')
     dipo_parameters_group = parser.add_argument_group('dipole_parameters')
     dipo_parameters_group.add_argument(
-        '--solsys_speed', required=False, type=np.float,
+        '--solsys_speed', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_speed"],
         help='Solar system speed wrt. CMB rest frame in km/s. Default is '
         'Planck 2015 best fit value')
     dipo_parameters_group.add_argument(
-        '--solsys-glon', required=False, type=np.float,
+        '--solsys-glon', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glon"],
         help='Solar system velocity direction longitude in degrees')
     dipo_parameters_group.add_argument(
-        '--solsys-glat', required=False, type=np.float,
+        '--solsys-glat', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glat"],
         help='Solar system velocity direction latitude in degrees')
 

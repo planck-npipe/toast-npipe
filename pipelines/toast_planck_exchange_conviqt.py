@@ -47,12 +47,12 @@ def main():
         description="Simple on-the-fly signal convolution + MADAM Mapmaking",
         fromfile_prefix_chars="@",
     )
-    parser.add_argument("--lmax", required=True, type=np.int, help="Simulation lmax")
+    parser.add_argument("--lmax", required=True, type=int, help="Simulation lmax")
     parser.add_argument(
-        "--fwhm", required=True, type=np.float, help="Sky fwhm [arcmin] to deconvolve"
+        "--fwhm", required=True, type=float, help="Sky fwhm [arcmin] to deconvolve"
     )
-    parser.add_argument("--beammmax", required=True, type=np.int, help="Beam mmax")
-    parser.add_argument("--order", default=11, type=np.int, help="Iteration order")
+    parser.add_argument("--beammmax", required=True, type=int, help="Beam mmax")
+    parser.add_argument("--order", default=11, type=int, help="Iteration order")
     parser.add_argument(
         "--pxx",
         required=False,
@@ -94,7 +94,7 @@ def main():
         "replaced with detector name.",
     )
     parser.add_argument("--rimo", required=True, help="RIMO file")
-    parser.add_argument("--freq", required=True, type=np.int, help="Frequency")
+    parser.add_argument("--freq", required=True, type=int, help="Frequency")
     parser.add_argument(
         "--dets", required=False, default=None, help="Detector list (comma separated)"
     )
@@ -110,49 +110,49 @@ def main():
         "--effdir_out", required=False, help="Output directory for convolved TOD"
     )
     parser.add_argument(
-        "--obtmask", required=False, default=1, type=np.int, help="OBT flag mask"
+        "--obtmask", required=False, default=1, type=int, help="OBT flag mask"
     )
     parser.add_argument(
-        "--flagmask", required=False, default=1, type=np.int, help="Quality flag mask"
+        "--flagmask", required=False, default=1, type=int, help="Quality flag mask"
     )
     parser.add_argument("--ringdb", required=True, help="Ring DB file")
     parser.add_argument(
-        "--odfirst", required=False, default=None, type=np.int, help="First OD to use"
+        "--odfirst", required=False, default=None, type=int, help="First OD to use"
     )
     parser.add_argument(
-        "--odlast", required=False, default=None, type=np.int, help="Last OD to use"
+        "--odlast", required=False, default=None, type=int, help="Last OD to use"
     )
     parser.add_argument(
         "--ringfirst",
         required=False,
         default=None,
-        type=np.int,
+        type=int,
         help="First ring to use",
     )
     parser.add_argument(
-        "--ringlast", required=False, default=None, type=np.int, help="Last ring to use"
+        "--ringlast", required=False, default=None, type=int, help="Last ring to use"
     )
     parser.add_argument(
         "--obtfirst",
         required=False,
         default=None,
-        type=np.float,
+        type=float,
         help="First OBT to use",
     )
     parser.add_argument(
-        "--obtlast", required=False, default=None, type=np.float, help="Last OBT to use"
+        "--obtlast", required=False, default=None, type=float, help="Last OBT to use"
     )
     parser.add_argument("--madam_prefix", required=False, help="map prefix")
     parser.add_argument(
         "--madampar", required=False, default=None, help="Madam parameter file"
     )
     parser.add_argument(
-        "--obtmask_madam", required=False, type=np.int, help="OBT flag mask for Madam"
+        "--obtmask_madam", required=False, type=int, help="OBT flag mask for Madam"
     )
     parser.add_argument(
         "--flagmask_madam",
         required=False,
-        type=np.int,
+        type=int,
         help="Quality flag mask for Madam",
     )
     parser.add_argument(

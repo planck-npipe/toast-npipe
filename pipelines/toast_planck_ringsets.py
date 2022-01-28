@@ -37,7 +37,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Planck Ringset making', fromfile_prefix_chars='@')
     parser.add_argument('--rimo', required=True, help='RIMO file')
-    parser.add_argument('--freq', required=True, type=np.int, help='Frequency')
+    parser.add_argument('--freq', required=True, type=int, help='Frequency')
     parser.add_argument('--dets', required=False, default=None,
                         help='Detector list (comma separated)')
     parser.add_argument('--effdir', required=True,
@@ -48,9 +48,9 @@ def main():
     parser.add_argument('--effdir_pntg', required=False,
                         help='Input Exchange Format File directory for '
                         'pointing')
-    parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+    parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+    parser.add_argument('--flagmask', required=False, default=1, type=int,
                         help='Quality flag mask')
     parser.add_argument('--ringdb', required=True, help='Ring DB file')
     parser.add_argument('--odfirst', required=False, default=None,
@@ -81,26 +81,26 @@ def main():
     dipo_parameters_group = parser.add_argument_group('dipole_parameters')
     dipo_parameters_group.add_argument(
         '--solsys_speed', dest='solsys_speed', required=False,
-        type=np.float, default=DEFAULT_PARAMETERS["solsys_speed"],
+        type=float, default=DEFAULT_PARAMETERS["solsys_speed"],
         help='Solar system speed wrt. CMB rest frame in km/s. '
         'Default is Planck 2015 best fit value')
     dipo_parameters_group.add_argument(
-        '--solsys_glon', dest='solsys_glon', required=False, type=np.float,
+        '--solsys_glon', dest='solsys_glon', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glon"],
         help='Solar system velocity direction longitude in degrees')
     dipo_parameters_group.add_argument(
-        '--solsys_glat', dest='solsys_glat', required=False, type=np.float,
+        '--solsys_glat', dest='solsys_glat', required=False, type=float,
         default=DEFAULT_PARAMETERS["solsys_glat"],
         help='Solar system velocity direction latitude in degrees')
 
     # libconviqt parameters
-    parser.add_argument('--lmax', required=False, default=1024, type=np.int,
+    parser.add_argument('--lmax', required=False, default=1024, type=int,
                         help='Simulation lmax')
-    parser.add_argument('--fwhm', required=False, default=0.0, type=np.float,
+    parser.add_argument('--fwhm', required=False, default=0.0, type=float,
                         help='Sky fwhm [arcmin] to deconvolve')
     parser.add_argument('--beammmax', required=False, default=None,
-                        type=np.int, help='Beam mmax')
-    parser.add_argument('--order', required=False, default=11, type=np.int,
+                        type=int, help='Beam mmax')
+    parser.add_argument('--order', required=False, default=11, type=int,
                         help='Iteration order')
     parser.add_argument('--pxx', required=False, default=False,
                         action='store_true',
@@ -123,11 +123,11 @@ def main():
     parser.add_argument('--noisefile_simu', required=False, default='RIMO',
                         help='Path to noise PSD files for noise simulation. '
                         'Tag DETECTOR will be replaced with detector name.')
-    parser.add_argument('--mc', required=False, default=0, type=np.int,
+    parser.add_argument('--mc', required=False, default=0, type=int,
                         help='Noise realization')
     # ringset parameters
     parser.add_argument('--nside_ring', required=False, default=128,
-                        type=np.int, help='Ringset resolution')
+                        type=int, help='Ringset resolution')
     parser.add_argument('--ring_root', required=False, default='ringset',
                         help='Root filename for ringsets (setting to empty '
                         'disables ringset output).')

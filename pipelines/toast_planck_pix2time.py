@@ -16,7 +16,7 @@ import toast_planck as tp
 parser = argparse.ArgumentParser(description='Find pixel hit times',
                                  fromfile_prefix_chars='@')
 parser.add_argument('--rimo', required=True, help='RIMO file')
-parser.add_argument('--freq', required=True, type=np.int,
+parser.add_argument('--freq', required=True, type=int,
                     help='Frequency')
 parser.add_argument('--dets', required=False, default=None,
                     help='Detector list (comma separated)')
@@ -26,24 +26,24 @@ parser.add_argument('--effdir', required=True,
                     help='Input Exchange Format File directory')
 parser.add_argument('--effdir_pntg', required=False,
                     help='Input Exchange Format File directory for pointing')
-parser.add_argument('--nside', required=True, type=np.int,
+parser.add_argument('--nside', required=True, type=int,
                     help='Healpix resolution')
-parser.add_argument('--obtmask', required=False, default=1, type=np.int,
+parser.add_argument('--obtmask', required=False, default=1, type=int,
                     help='OBT flag mask')
-parser.add_argument('--flagmask', required=False, default=1, type=np.int,
+parser.add_argument('--flagmask', required=False, default=1, type=int,
                     help='Quality flag mask')
 parser.add_argument('--ringdb', required=True, help='Ring DB file')
-parser.add_argument('--odfirst', required=False, default=None, type=np.int,
+parser.add_argument('--odfirst', required=False, default=None, type=int,
                     help='First OD to use')
-parser.add_argument('--odlast', required=False, default=None, type=np.int,
+parser.add_argument('--odlast', required=False, default=None, type=int,
                     help='Last OD to use')
-parser.add_argument('--ringfirst', required=False, default=None, type=np.int,
+parser.add_argument('--ringfirst', required=False, default=None, type=int,
                     help='First ring to use')
-parser.add_argument('--ringlast', required=False, default=None, type=np.int,
+parser.add_argument('--ringlast', required=False, default=None, type=int,
                     help='Last ring to use')
-parser.add_argument('--obtfirst', required=False, default=None, type=np.float,
+parser.add_argument('--obtfirst', required=False, default=None, type=float,
                     help='First OBT to use')
-parser.add_argument('--obtlast', required=False, default=None, type=np.float,
+parser.add_argument('--obtlast', required=False, default=None, type=float,
                     help='Last OBT to use')
 
 args = parser.parse_args()
@@ -67,7 +67,7 @@ if args.dets is not None:
     detectors = re.split(',', args.dets)
 
 if args.pixels is not None:
-    target_pixels = np.array(re.split(',', args.pixels)).astype(np.int)
+    target_pixels = np.array(re.split(',', args.pixels)).astype(int)
 
 # This is the 2-level toast communicator.  By default,
 # there is just one group which spans MPI_COMM_WORLD.

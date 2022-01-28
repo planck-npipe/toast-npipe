@@ -8,7 +8,7 @@
 if 'TOAST_STARTUP_DELAY' in os.environ:
     import numpy as np
     import time
-    delay = np.float(os.environ['TOAST_STARTUP_DELAY'])
+    delay = float(os.environ['TOAST_STARTUP_DELAY'])
     wait = np.random.rand() * delay
     print('Sleeping for {} seconds before importing TOAST'.format(wait),
           flush=True)
@@ -57,7 +57,7 @@ from toast_planck.preproc_modules import MapSampler
 def test_performance(mpiworld):
     if "TOAST_PLANCK_TEST_PERFORMANCE" not in os.environ:
         return
-    if np.int(os.environ["TOAST_STARTUP_DELAY"]) == 0:
+    if int(os.environ["TOAST_STARTUP_DELAY"]) == 0:
         return
     n = 2 ** 10
     x = np.arange(n ** 2).reshape([n, n])
@@ -110,22 +110,22 @@ def add_sim_params(parser):
         "--sim_nside",
         required=False,
         default=2048,
-        type=np.int,
+        type=int,
         help="Resolution for interpolation",
     )
     # Conviqt parameters
     parser.add_argument(
-        "--conviqt_lmax", default=0, type=np.int, help="Simulation lmax"
+        "--conviqt_lmax", default=0, type=int, help="Simulation lmax"
     )
     parser.add_argument(
         "--conviqt_fwhm",
         default=0,
-        type=np.float,
+        type=float,
         help="Sky FWHM [arcmin] to deconvolve",
     )
-    parser.add_argument("--conviqt_mmax", default=0, type=np.int, help="Beam mmax")
+    parser.add_argument("--conviqt_mmax", default=0, type=int, help="Beam mmax")
     parser.add_argument(
-        "--conviqt_order", default=11, type=np.int, help="Iteration order"
+        "--conviqt_order", default=11, type=int, help="Iteration order"
     )
     parser.add_argument(
         "--conviqt_pxx",
@@ -144,7 +144,7 @@ def add_sim_params(parser):
         "--freq_sigma",
         required=False,
         default=1.00,
-        type=np.float,
+        type=float,
         help="Width of the center frequency "
         "distribution. 0 = use hard-coded values.",
     )
@@ -168,14 +168,14 @@ def add_sim_params(parser):
         "--MC_start",
         required=False,
         default=0,
-        type=np.int,
+        type=int,
         help="First Monte Carlo noise realization",
     )
     parser.add_argument(
         "--MC_count",
         required=False,
         default=1,
-        type=np.int,
+        type=int,
         help="Number of Monte Carlo noise realizations",
     )
     # Noise parameters
@@ -267,30 +267,30 @@ def add_input_params(parser):
     )
     parser.add_argument("--ringdb", required=True, help="Ring DB file")
     parser.add_argument(
-        "--odfirst", required=False, default=None, type=np.int, help="First OD to use"
+        "--odfirst", required=False, default=None, type=int, help="First OD to use"
     )
     parser.add_argument(
-        "--odlast", required=False, default=None, type=np.int, help="Last OD to use"
+        "--odlast", required=False, default=None, type=int, help="Last OD to use"
     )
     parser.add_argument(
         "--ringfirst",
         required=False,
         default=None,
-        type=np.int,
+        type=int,
         help="First ring to use",
     )
     parser.add_argument(
-        "--ringlast", required=False, default=None, type=np.int, help="Last ring to use"
+        "--ringlast", required=False, default=None, type=int, help="Last ring to use"
     )
     parser.add_argument(
         "--obtfirst",
         required=False,
         default=None,
-        type=np.float,
+        type=float,
         help="First OBT to use",
     )
     parser.add_argument(
-        "--obtlast", required=False, default=None, type=np.float, help="Last OBT to use"
+        "--obtlast", required=False, default=None, type=float, help="Last OBT to use"
     )
     parser.add_argument(
         "--effdir_dark",
@@ -298,7 +298,7 @@ def add_input_params(parser):
         help="Input Exchange Format File directory for dark bolometer data",
     )
     parser.add_argument(
-        "--darkmask", required=False, default=1, type=np.int, help="Dark flag mask"
+        "--darkmask", required=False, default=1, type=int, help="Dark flag mask"
     )
     parser.add_argument(
         "--lfi_raw",
@@ -311,19 +311,19 @@ def add_input_params(parser):
         "--margin",
         required=False,
         default=1000,
-        type=np.int,
+        type=int,
         help="Preprocessing margin.",
     )
     parser.add_argument(
-        "--flagmask", required=False, default=1, type=np.int, help="Quality flag mask"
+        "--flagmask", required=False, default=1, type=int, help="Quality flag mask"
     )
     parser.add_argument(
-        "--obtmask", required=False, default=1, type=np.int, help="OBT flag mask"
+        "--obtmask", required=False, default=1, type=int, help="OBT flag mask"
     )
     parser.add_argument(
-        "--pntmask", required=False, default=2, type=np.int, help="Pointing flag mask"
+        "--pntmask", required=False, default=2, type=int, help="Pointing flag mask"
     )
-    parser.add_argument("--ssomask", required=False, type=np.int, help="SSO flag mask")
+    parser.add_argument("--ssomask", required=False, type=int, help="SSO flag mask")
     return
 
 
@@ -338,7 +338,7 @@ def add_beam_params(parser):
         "--beam_iter",
         required=False,
         default=3,
-        type=np.int,
+        type=int,
         help="Number of beam iterations",
     )
     parser.add_argument("--beam_fits", required=False, help="Beam output file.")
@@ -366,7 +366,7 @@ def add_shdet_params(parser):
         "--shdet_seed",
         required=False,
         default=0,
-        type=np.float,
+        type=float,
         help="SHDet random number generator base seed.",
     )
     parser.add_argument(
@@ -446,7 +446,7 @@ def add_shdet_params(parser):
     parser.add_argument(
         "--shdet_global_phase_shift",
         required=False,
-        type=np.float,
+        type=float,
         default=0,
         help="An global phase shift (in samples) to use in reproc Fourier filter.",
     )
@@ -493,35 +493,35 @@ def add_preproc_params(parser):
         "--nbin",
         required=False,
         default=10000,
-        type=np.int,
+        type=int,
         help="Number of phase bins",
     )
     parser.add_argument(
         "--jump_filter_len",
         required=False,
         default=40000,
-        type=np.int,
+        type=int,
         help="Jump filter length",
     )
     parser.add_argument(
         "--jump_threshold",
         required=False,
         default=5.0,
-        type=np.float,
+        type=float,
         help="Jump detection threshold",
     )
     parser.add_argument(
         "--preproc_timeout",
         required=False,
         default=120,
-        type=np.int,
+        type=int,
         help="Maximum time allowed for preprocessing a ring",
     )
     parser.add_argument(
         "--preproc_timeout_intermediate",
         required=False,
         default=60,
-        type=np.int,
+        type=int,
         help="Maximum time allowed for preprocessing a ring before last iteration",
     )
     parser.add_argument(
@@ -535,16 +535,16 @@ def add_preproc_params(parser):
         help="Measure ADC NL",
     )
     parser.add_argument(
-        "--niter_ADC", default=1, type=np.int, help="Number of ADC NL iterations"
+        "--niter_ADC", default=1, type=int, help="Number of ADC NL iterations"
     )
     parser.add_argument(
-        "--delta_ADC", default=1.0, type=np.float, help="Width of ADC bin in ADU"
+        "--delta_ADC", default=1.0, type=float, help="Width of ADC bin in ADU"
     )
     parser.add_argument(
         "--nphase4k",
         required=False,
         default=2,
-        type=np.int,
+        type=int,
         help="Number of 4K cooler phases to measure ADC NL for.",
     )
     parser.add_argument(
@@ -565,31 +565,31 @@ def add_preproc_params(parser):
         "--planet_flag_radius",
         required=False,
         default=2.0,
-        type=np.float,
+        type=float,
         help="New planet flag radius (in FWHM) when --flag_planets",
     )
     parser.add_argument(
-        "--detmask", required=False, type=np.int, help="Detector flag mask"
+        "--detmask", required=False, type=int, help="Detector flag mask"
     )
     parser.add_argument(
         "--intense_threshold",
         required=False,
         default=1e10,
-        type=np.float,
+        type=float,
         help="Intense signal threshold [K_CMB]",
     )
     parser.add_argument(
         "--preproc_async_time",
         required=False,
         default=1000,
-        type=np.int,
+        type=int,
         help="Initial asynchronous processing time before load balancing",
     )
     parser.add_argument(
         "--preproc_async_time_intermediate",
         required=False,
         default=800,
-        type=np.int,
+        type=int,
         help="Initial asynchronous processing time before "
         "load balancing before last iteration",
     )
@@ -650,35 +650,35 @@ def add_reproc_params(parser):
         "--reproc_pol_fwhm",
         required=False,
         default=60,
-        type=np.float,
+        type=float,
         help="Reproc polarization resolution",
     )
     parser.add_argument(
         "--reproc_pol_lmax",
         required=False,
         default=512,
-        type=np.int,
+        type=int,
         help="Reproc polarization resolution",
     )
     parser.add_argument(
         "--reproc_pol_nside",
         required=False,
         default=256,
-        type=np.int,
+        type=int,
         help="Reproc polarization resolution",
     )
     parser.add_argument(
         "--reproc_detmask",
         required=False,
         default=1 + 8,
-        type=np.int,
+        type=int,
         help="Reproc detector flag mask",
     )
     parser.add_argument(
         "--reproc_nharm",
         required=False,
         default=20,
-        type=np.int,
+        type=int,
         help="Number of passbands in differentiation.",
     )
     parser.add_argument(
@@ -772,21 +772,21 @@ def add_reproc_params(parser):
         "--reproc_nside",
         required=False,
         default=512,
-        type=np.int,
+        type=int,
         help="Reprocessing resolution",
     )
     parser.add_argument(
         "--reproc_nside_bandpass",
         required=False,
         default=256,
-        type=np.int,
+        type=int,
         help="Reproc bandpass resolution",
     )
     parser.add_argument(
         "--reproc_fwhm_bandpass",
         required=False,
         default=60,
-        type=np.float,
+        type=float,
         help="Reproc bandpass resolution",
     )
     parser.add_argument(
@@ -815,7 +815,7 @@ def add_reproc_params(parser):
         "--reproc_niter",
         required=False,
         default=1,
-        type=np.int,
+        type=int,
         help="Number of reproc iterations",
     )
     parser.add_argument(
@@ -842,7 +842,7 @@ def add_reproc_params(parser):
     parser.add_argument(
         "--reproc_effective_amp_limit",
         required=False,
-        type=np.float,
+        type=float,
         default=0.02,
         help="Effective dipole amplitude limit.",
     )
@@ -854,21 +854,21 @@ def add_reproc_params(parser):
     parser.add_argument(
         "--reproc_min_step_length",
         required=False,
-        type=np.int,
+        type=int,
         default=10,
         help="Minimum gain step length.",
     )
     parser.add_argument(
         "--reproc_max_step_length",
         required=False,
-        type=np.int,
+        type=int,
         default=100,
         help="Maximum gain step length.",
     )
     parser.add_argument(
         "--reproc_outlier_threshold",
         required=False,
-        type=np.float,
+        type=float,
         default=10,
         help="Outlier ring flagging threshold in units of RMS.",
     )
@@ -910,7 +910,7 @@ def add_reproc_params(parser):
     parser.add_argument(
         "--reproc_nside_single",
         required=False,
-        type=np.int,
+        type=int,
         help="Single detector map resolution",
     )
     parser.add_argument(
@@ -951,7 +951,7 @@ def add_reproc_params(parser):
     parser.add_argument(
         "--reproc_psradius",
         required=False,
-        type=np.float,
+        type=float,
         default=30,
         help="Radius to excise in arc min when --reproc_pscorrect.",
     )
@@ -1232,7 +1232,7 @@ def parse_arguments():
     )
     parser.add_argument("--rimo", required=True, help="RIMO file")
     parser.add_argument("--imo", required=True, help="IMO file")
-    parser.add_argument("--freq", required=True, type=np.int, help="Frequency")
+    parser.add_argument("--freq", required=True, type=int, help="Frequency")
     parser.add_argument(
         "--debug",
         dest="debug",
@@ -1248,7 +1248,7 @@ def parse_arguments():
         "--effdir_out_madam", required=False, help="Output directory for Madam"
     )
     parser.add_argument(
-        "--nside", required=False, default=1024, type=np.int, help="Pipeline resolution"
+        "--nside", required=False, default=1024, type=int, help="Pipeline resolution"
     )
     parser.add_argument("--bg_map", required=False, help="Map template")
     parser.add_argument(
@@ -1271,7 +1271,7 @@ def parse_arguments():
         "--bg_nside",
         required=False,
         default=1024,
-        type=np.int,
+        type=int,
         help="Map template resolution",
     )
     parser.add_argument("--calfile", required=False, help="Calibration file")
@@ -1286,7 +1286,7 @@ def parse_arguments():
         "--nside_ring",
         required=False,
         default=128,
-        type=np.int,
+        type=int,
         help="Ringset resolution",
     )
     parser.add_argument(
