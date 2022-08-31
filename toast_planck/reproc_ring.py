@@ -244,6 +244,7 @@ class OpReprocRing(toast.Operator):
         skymodel_cache="./skymodel_cache",
         do_dipo=True,
         nside=1024,
+        destriper_pixlim=1e-2,
         do_fsl=True,
         split_fsl=False,
         fsl_primary="fsl_primary",
@@ -286,6 +287,7 @@ class OpReprocRing(toast.Operator):
         bad_rings=None,
         temperature_only=False,
         temperature_only_destripe=False,
+        temperature_only_intermediate=False,
         calfile=None,
         calfile_iter=None,
         effective_amp_limit=0.02,
@@ -354,6 +356,7 @@ class OpReprocRing(toast.Operator):
         self.pol_nside = min(pol_nside, pix_nside)
         self.single_nside = single_nside
         self.nside = min(nside, pix_nside)
+        self.destriper_pixlim = destriper_pixlim
         self.npix = hp.nside2npix(nside)
         self.ndegrade = (self.pix_nside // self.nside) ** 2
         self.do_zodi = do_zodi
@@ -423,6 +426,7 @@ class OpReprocRing(toast.Operator):
         if self.quss_correct:
             self.symmetrize = True
         self.temperature_only = temperature_only
+        self.temperature_only_intermediate = temperature_only_intermediate
         self.temperature_only_destripe = temperature_only_destripe
         self.mcmode = mcmode
         self.polparammode = polparammode
@@ -792,10 +796,12 @@ class OpReprocRing(toast.Operator):
                 fsl = tod.local_fsl(det)
                 nan = np.isnan(fsl)
                 nnan = np.sum(nan)
-                if nnan != 0:
+                nan[fsl == 0] = True
+                nzero = np.sum(nan) - nnan
+                if (nnan + nzero) != 0:
                     print(
-                        "{:4} : WARNING : Flagging {} NaNs in FSL TOD."
-                        "".format(self.rank, nnan),
+                        "{:4} : WARNING : Flagging {} NaNs and {} zeroes in FSL TOD."
+                        "".format(self.rank, nnan, nzero),
                         flush=True,
                     )
                     flags[nan] |= 1
@@ -1953,26 +1959,6 @@ class OpReprocRing(toast.Operator):
                     iquweights,
                 )
 
-                # DEBUG begin
-                """
-                # : get the polarization template directly from cache
-                fg_toi = self.cache.reference("pol_signal_{}".format(det))[ind]
-                quat = self.tod.local_pointing(det)[ind]
-                fg_toi = bin_ring(
-                    pixels // self.ndegrade,
-                    fg_toi.astype(np.float64),
-                    iquweights.astype(np.float64),
-                    quat.astype(np.float64),
-                    phase.astype(np.float64),
-                    detflags | pntflags,
-                    self.mask.Map[:],
-                ).signal
-                # FIXME: must bin fg_toi to ring
-                templates[iring][det]["pol0"] = RingTemplate(fg_toi, 0)
-                if "pol0" not in namplitude:
-                    namplitude["pol0"] = 1
-                """
-                # DEBUG end
                 self._add_polarization_templates(
                     ring,
                     iring,
@@ -2403,8 +2389,8 @@ class OpReprocRing(toast.Operator):
                 except Exception:
                     print(
                         "WARNING: failed to invert template covariance "
-                        "det = {}, ring = {}, invcov = {}".format(
-                            det, iring + self.ring_offset, invcov
+                        "det = {}, ring = {}, invcov = {}, names = {}".format(
+                            det, iring + self.ring_offset, invcov, names
                         )
                     )
                     continue
@@ -2575,7 +2561,7 @@ class OpReprocRing(toast.Operator):
             self.npix,
             nnz,
             self.comm,
-            threshold=1e-2,
+            threshold=self.destriper_pixlim,
             itermax=1000,
             cglimit=1e-12,
             ndegrade=1,
@@ -3916,7 +3902,7 @@ class OpReprocRing(toast.Operator):
             pars["noise_weights_from_psd"] = False
             pars["nsubchunk"] = 1
             pars["isubchunk"] = 0
-            if self.temperature_only:
+            if self.temperature_only or self.temperature_only_intermediate:
                 mode = "I"
                 pars["force_pol"] = False
                 pars["write_leakmatrix"] = False

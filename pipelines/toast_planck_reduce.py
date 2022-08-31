@@ -668,6 +668,13 @@ def add_reproc_params(parser):
         help="Reproc polarization resolution",
     )
     parser.add_argument(
+        "--reproc_pixlim",
+        required=False,
+        default=1e-2,
+        type=float,
+        help="Reproc destriper pixel rejection threshold",
+    )
+    parser.add_argument(
         "--reproc_detmask",
         required=False,
         default=1 + 8,
@@ -725,6 +732,13 @@ def add_reproc_params(parser):
         default=False,
         action="store_true",
         help="Run reproc fitting unpolarized",
+    )
+    parser.add_argument(
+        "--reproc_temperature_only_intermediate",
+        dest="reproc_temperature_only_intermediate",
+        default=False,
+        action="store_true",
+        help="Run reproc intermediate mapmaking unpolarized",
     )
     parser.add_argument(
         "--reproc_CMB", required=False, help="CMB map file for calibration."
@@ -1838,6 +1852,7 @@ def run_reproc(
         freefree=args.reproc_freefree,
         pix_nside=args.nside,
         nside=args.reproc_nside,
+        destriper_pixlim=args.reproc_pixlim,
         maskfile=args.reproc_mask,
         maskfile_bp=args.reproc_bandpass_mask,
         bandpass_nside=args.reproc_nside_bandpass,
@@ -1870,6 +1885,7 @@ def run_reproc(
         quss_correct=args.reproc_quss_correct,
         temperature_only=args.reproc_temperature_only,
         temperature_only_destripe=args.reproc_temperature_only_destripe,
+        temperature_only_intermediate=args.reproc_temperature_only_intermediate,
         calfile=args.calfile,
         effective_amp_limit=args.reproc_effective_amp_limit,
         gain_step_mode=args.reproc_gain_step_mode,
