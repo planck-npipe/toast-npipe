@@ -28,7 +28,7 @@ class RingMasker():
                     print('Line {} failed to parse: {} : {}'.format(
                         iline, line, e))
                     continue
-                if bolo is not 'ALL':
+                if bolo != 'ALL':
                     if self.bolo is not None \
                        and self.bolo.upper() != bolo.upper():
                         continue
