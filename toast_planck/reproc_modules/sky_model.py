@@ -256,7 +256,7 @@ class SkyModel():
                         h[1].header['nu_ref'].split()[0]) * 1e-3  # To GHz
                     self.sync_fwhm = h[1].header['fwhm']
                 self.sync_As = hp.read_map(
-                    self.file_sync, verbose=False, dtype=DTYPE, memmap=True)
+                    self.file_sync, dtype=DTYPE, memmap=True)
                 self.sync_nside = hp.get_nside(self.sync_As)
                 self.sync_beta = None
                 if self.verbose:
@@ -269,10 +269,10 @@ class SkyModel():
                 self.sync_fwhm = 60.
                 self.sync_nu_ref = 0.408
                 self.sync_As = hp.read_map(
-                    self.file_sync, verbose=False, dtype=DTYPE, memmap=True)
+                    self.file_sync, dtype=DTYPE, memmap=True)
                 self.sync_beta = hp.read_map(
                     self.file_sync.replace('synch_', 'synch_beta_'),
-                    verbose=False, dtype=DTYPE, memmap=True)
+                    dtype=DTYPE, memmap=True)
                 self.sync_nside = hp.get_nside(self.sync_As)
                 self.sync_psd_freq = None
                 self.sync_psd = None
@@ -299,7 +299,7 @@ class SkyModel():
                         h[1].header['nu_ref'].split()[0])  # In GHz
                     self.sync_pol_fwhm = h[1].header['fwhm']
                 self.sync_As_Q, self.sync_As_U = hp.read_map(
-                    self.file_sync_pol, [0, 1], verbose=False, dtype=DTYPE,
+                    self.file_sync_pol, [0, 1], dtype=DTYPE,
                     memmap=True)
                 self.sync_pol_nside = hp.get_nside(self.sync_As_Q)
                 self.sync_pol_psd_freq, self.sync_pol_psd = np.genfromtxt(
@@ -316,11 +316,11 @@ class SkyModel():
                 self.sync_pol_fwhm = 40.
                 self.sync_pol_nu_ref = 30.
                 self.sync_As_Q, self.sync_As_U = hp.read_map(
-                    self.file_sync_pol, [1, 2], verbose=False, dtype=DTYPE,
+                    self.file_sync_pol, [1, 2], dtype=DTYPE,
                     memmap=True)
                 self.sync_pol_beta = hp.read_map(
                     self.file_sync.replace('synch_', 'synch_beta_'),
-                    verbose=False, dtype=DTYPE, memmap=True)
+                    dtype=DTYPE, memmap=True)
                 self.sync_pol_nside = hp.get_nside(self.sync_As_Q)
                 self.sync_pol_psd_freq = None
                 self.sync_pol_psd = None
@@ -346,7 +346,7 @@ class SkyModel():
                 with pf.open(self.file_freefree) as h:
                     self.ff_fwhm = h[1].header['fwhm']
                 self.ff_em, self.ff_T_e = hp.read_map(
-                    self.file_freefree, [0, 3], verbose=False, dtype=DTYPE,
+                    self.file_freefree, [0, 3], dtype=DTYPE,
                     memmap=True)
                 self.ff_nside = hp.get_nside(self.ff_em)
                 self.ff_nu_ref = None
@@ -361,12 +361,12 @@ class SkyModel():
                 self.ff_fwhm = 20.
                 self.ff_nu_ref = 1.4
                 self.ff_amp = hp.read_map(
-                    self.file_freefree, verbose=False, dtype=DTYPE, memmap=True)
+                    self.file_freefree, dtype=DTYPE, memmap=True)
                 # self.ff_em = hp.read_map(
-                #    self.file_freefree.replace('ff_', 'ff_EM'), verbose=False,
+                #    self.file_freefree.replace('ff_', 'ff_EM'),
                 #    dtype=DTYPE, memmap=True)
                 self.ff_T_e = hp.read_map(
-                    self.file_freefree.replace('ff_', 'ff_Te_'), verbose=False,
+                    self.file_freefree.replace('ff_', 'ff_Te_'),
                     dtype=DTYPE, memmap=True)
                 self.ff_nside = hp.get_nside(self.ff_amp)
                 self.ff_em = None
@@ -399,10 +399,10 @@ class SkyModel():
                     self.ame_psd_freq = h[3].data.field(0)
                     self.ame_psd = h[3].data.field(1)
                 self.ame_1, self.ame_nu_p_1 = hp.read_map(
-                    self.file_ame, [0, 3], verbose=False, dtype=DTYPE,
+                    self.file_ame, [0, 3], dtype=DTYPE,
                     memmap=True)
                 self.ame_2 = hp.read_map(
-                    self.file_ame, hdu=2, verbose=False, dtype=DTYPE,
+                    self.file_ame, hdu=2, dtype=DTYPE,
                     memmap=True)
                 self.ame_nside = hp.get_nside(self.ame_1)
                 if self.verbose:
@@ -416,9 +416,9 @@ class SkyModel():
                 self.ame_fwhm = 30.  # GHz
                 self.ame_nu_ref1 = 30.  # arc min
                 self.ame_1 = hp.read_map(
-                    self.file_ame, verbose=False, dtype=DTYPE, memmap=True)
+                    self.file_ame, dtype=DTYPE, memmap=True)
                 self.ame_nu_p_1 = hp.read_map(
-                    self.file_ame.replace('ame_', 'ame_nu_p_'), verbose=False,
+                    self.file_ame.replace('ame_', 'ame_nu_p_'),
                     dtype=DTYPE, memmap=True)
                 self.ame_nu_ref2 = None
                 self.ame_2 = None
@@ -453,7 +453,7 @@ class SkyModel():
                     self.dust_nu_ref = float(
                         h[1].header['nu_ref'].split()[0])  # in GHz
                 self.dust_Ad, self.dust_temp, self.dust_beta = hp.read_map(
-                    self.file_dust, [0, 3, 6], verbose=False, dtype=DTYPE,
+                    self.file_dust, [0, 3, 6], dtype=DTYPE,
                     memmap=True)
             except Exception as e:
                 if self.verbose:
@@ -462,13 +462,13 @@ class SkyModel():
                 self.dust_fwhm = 5.
                 self.dust_nu_ref = 857
                 self.dust_Ad = hp.read_map(
-                    self.file_dust, verbose=False, dtype=DTYPE, memmap=True)
+                    self.file_dust, dtype=DTYPE, memmap=True)
                 self.dust_temp = hp.read_map(
                     self.file_dust.replace('dust', 'dust_T'),
-                    verbose=False, dtype=DTYPE, memmap=True)
+                    dtype=DTYPE, memmap=True)
                 self.dust_beta = hp.read_map(
                     self.file_dust.replace('dust', 'dust_beta'),
-                    verbose=False, dtype=DTYPE, memmap=True)
+                    dtype=DTYPE, memmap=True)
             self.dust_nside = hp.get_nside(self.dust_Ad)
             if self.verbose:
                 print('Loaded dust T: nside = {}, fwhm = {}'.format(
@@ -494,7 +494,7 @@ class SkyModel():
                 self.dust_temp_pol = None
                 self.dust_beta_pol = None
                 self.dust_Ad_Q, self.dust_Ad_U = hp.read_map(
-                    self.file_dust_pol, range(2), verbose=False, dtype=DTYPE,
+                    self.file_dust_pol, range(2), dtype=DTYPE,
                     memmap=True)
             except Exception as e:
                 if self.verbose:
@@ -503,11 +503,11 @@ class SkyModel():
                 self.dust_pol_fwhm = 5
                 self.dust_pol_nu_ref = 353
                 self.dust_Ad_Q, self.dust_Ad_U = hp.read_map(
-                    self.file_dust_pol, [1, 2], verbose=False, dtype=DTYPE,
+                    self.file_dust_pol, [1, 2], dtype=DTYPE,
                     memmap=True)
                 fname = self.file_dust_pol.replace('dust', 'dust_T')
                 self.dust_temp_pol = hp.read_map(
-                    fname, 1, verbose=False, dtype=DTYPE, memmap=True)
+                    fname, 1, dtype=DTYPE, memmap=True)
                 tlim = 12
                 bad = self.dust_temp_pol < tlim
                 nbad = np.sum(bad)
@@ -517,7 +517,7 @@ class SkyModel():
                     self.dust_temp_pol[bad] = tlim
                 self.dust_beta_pol = hp.read_map(
                     self.file_dust_pol.replace('dust', 'dust_beta'), 1,
-                    verbose=False, dtype=DTYPE, memmap=True)
+                    dtype=DTYPE, memmap=True)
             self.dust_pol_nside = hp.get_nside(self.dust_Ad_Q)
             if self.verbose:
                 print('Loaded dust P: nside = {}, fwhm = {}'.format(
@@ -901,14 +901,13 @@ if __name__ == '__main__':
                     m = hp.ud_grade(hp.read_map(
                         '/Users/reijo/data/PR2/frequencymaps/'
                         'LFI_SkyMap_{:03}_1024_R2.01_full.fits'.format(freq),
-                        range(3), verbose=False), nside)
+                        range(3)), nside)
                 else:
                     m = hp.ud_grade(hp.read_map(
                         '/Users/reijo/data/PR2/frequencymaps/'
                         'HFI_SkyMap_{:03}_2048_R2.02_full.fits'.format(freq),
-                        range(3), verbose=False), nside)
-                m = hp.smoothing(m, fwhm=4 * np.pi / 180, lmax=512,
-                                 verbose=False)
+                        range(3)), nside)
+                m = hp.smoothing(m, fwhm=4 * np.pi / 180, lmax=512)
                 m = np.array(m)
                 m[0] = hp.remove_monopole(m[0], gal_cut=80)
                 hp.mollview(m[0] * norm, min=-amp, max=amp,
@@ -934,9 +933,9 @@ if __name__ == '__main__':
 
         if skymodel.rank == -1:
             mtot1 = np.array(hp.smoothing(
-                mtot1, fwhm=4 * np.pi / 180, lmax=512, verbose=False))
+                mtot1, fwhm=4 * np.pi / 180, lmax=512))
             mtot2 = np.array(hp.smoothing(
-                mtot2, fwhm=4 * np.pi / 180, lmax=512, verbose=False))
+                mtot2, fwhm=4 * np.pi / 180, lmax=512))
             hp.mollview(mtot1[0] * norm, sub=[nrow, ncol, ifreq + 2 * ncol + 1],
                         min=-amp, max=amp, title='FG {}GHz'.format(freq))
             hp.mollview(np.sqrt(mtot1[1] ** 2 + mtot1[2] ** 2) * norm,

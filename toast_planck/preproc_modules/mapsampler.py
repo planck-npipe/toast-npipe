@@ -110,7 +110,6 @@ class MapSampler:
                             self.path,
                             field=[1, 2],
                             dtype=DTYPE,
-                            verbose=verbose,
                             memmmap=True,
                             nest=self.nest,
                         )
@@ -120,7 +119,6 @@ class MapSampler:
                                 self.path,
                                 field=[0, 1, 2],
                                 dtype=DTYPE,
-                                verbose=verbose,
                                 memmap=True,
                                 nest=self.nest,
                             )
@@ -133,7 +131,6 @@ class MapSampler:
                             self.Map = hp.read_map(
                                 self.path,
                                 dtype=DTYPE,
-                                verbose=verbose,
                                 memmap=True,
                                 nest=self.nest,
                             )
@@ -193,7 +190,6 @@ class MapSampler:
                         map_path,
                         field=[0],
                         dtype=DTYPE,
-                        verbose=verbose,
                         memmap=True,
                         nest=self.nest,
                     )

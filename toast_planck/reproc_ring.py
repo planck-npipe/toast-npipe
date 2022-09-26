@@ -92,7 +92,7 @@ def get_skymodel(
         fg_iqu = None
         if comm.rank == 0 and os.path.isfile(fn_skymodel):
             print("Loading cached sky model from " + fn_skymodel, flush=True)
-            fg_iqu = hp.read_map(fn_skymodel, None, nest=True, verbose=False)
+            fg_iqu = hp.read_map(fn_skymodel, None, nest=True)
         fg_iqu = comm.bcast(fg_iqu)
         if fg_iqu is None:
             raise RuntimeError("Failed to load " + fn_skymodel)
@@ -103,9 +103,7 @@ def get_skymodel(
             fg_deriv_iqu = None
             if comm.rank == 0 and os.path.isfile(fn_skymodel_deriv):
                 print("Loading cached sky model from " + fn_skymodel_deriv, flush=True)
-                fg_deriv_iqu = hp.read_map(
-                    fn_skymodel_deriv, None, nest=True, verbose=False
-                )
+                fg_deriv_iqu = hp.read_map(fn_skymodel_deriv, None, nest=True)
             fg_deriv_iqu = comm.bcast(fg_deriv_iqu)
             if fg_deriv_iqu is None:
                 raise RuntimeError("Failed to load " + fn_skymodel_deriv)
@@ -121,9 +119,7 @@ def get_skymodel(
             fg_deriv2_iqu = None
             if comm.rank == 0 and os.path.isfile(fn_skymodel_deriv2):
                 print("Loading cached sky model from " + fn_skymodel_deriv2, flush=True)
-                fg_deriv2_iqu = hp.read_map(
-                    fn_skymodel_deriv2, None, nest=True, verbose=False
-                )
+                fg_deriv2_iqu = hp.read_map(fn_skymodel_deriv2, None, nest=True)
             fg_deriv2_iqu = comm.bcast(fg_deriv2_iqu)
             if fg_deriv2_iqu is None:
                 raise RuntimeError("Failed to load " + fn_skymodel_deriv2)
@@ -4032,7 +4028,7 @@ class OpReprocRing(toast.Operator):
             if self.maskfile_bp is not None:
                 fname = self.maskfile_bp
             print("Reading {}".format(fname), flush=True)
-            mask = hp.read_map(fname, nest=True, dtype=np.float32, verbose=False)
+            mask = hp.read_map(fname, nest=True, dtype=np.float32)
             mask = hp.ud_grade(
                 mask,
                 self.bandpass_nside,
@@ -4053,7 +4049,6 @@ class OpReprocRing(toast.Operator):
                 range(2, self.nhorn + 2),
                 nest=True,
                 dtype=np.float32,
-                verbose=False,
             )
             print("Downgrading SS", flush=True)
             ss = hp.ud_grade(
@@ -4076,9 +4071,7 @@ class OpReprocRing(toast.Operator):
                     i += 1
             fname = fname.replace("_bmap", "_wcov")
             print("Reading {}".format(fname), flush=True)
-            ssnoise = hp.read_map(
-                fname, ind, nest=True, dtype=np.float32, verbose=False
-            )
+            ssnoise = hp.read_map(fname, ind, nest=True, dtype=np.float32)
             print("Downgrading SS noise")
             ssnoise[ssnoise == 0] = hp.UNSEEN
             ssnoise = hp.ud_grade(
@@ -4349,7 +4342,7 @@ class OpReprocRing(toast.Operator):
                 hdulist.close()
             full_map = np.array(
                 hp.ud_grade(
-                    hp.read_map(path, None, dtype=np.float32, verbose=False, nest=True),
+                    hp.read_map(path, None, dtype=np.float32, nest=True),
                     self.bandpass_nside,
                     order_in="NESTED",
                     order_out="NESTED",
