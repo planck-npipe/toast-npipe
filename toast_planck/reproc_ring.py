@@ -279,6 +279,7 @@ class OpReprocRing(toast.Operator):
         psradius=30,
         bpcorrect=False,
         bpcorrect2=False,
+        fgdipole=False,
         madampars=None,
         bad_rings=None,
         temperature_only=False,
@@ -318,7 +319,6 @@ class OpReprocRing(toast.Operator):
         self.cmb_mc = cmb_mc
         self.ssofraclim = ssofraclim
         self.symmetrize = symmetrize
-        self.restore_dipole = restore_dipole
         self.effective_amp_limit = effective_amp_limit
         if gain_step_mode not in [None, 'mission', 'years', 'survey']:
             raise RuntimeError(
@@ -358,6 +358,7 @@ class OpReprocRing(toast.Operator):
         self.do_zodi = do_zodi
         self.zodi_cache = zodi_cache
         self.skymodel_cache = skymodel_cache
+        self.restore_dipole = restore_dipole
         self.do_dipo = do_dipo
         self.do_fsl = do_fsl
         self.split_fsl = split_fsl
@@ -375,6 +376,7 @@ class OpReprocRing(toast.Operator):
         self.ame = ame
         self.freefree = freefree
         self.recalibrate = recalibrate
+        self.fgdipole = fgdipole
         self.bandpass_nside = min(bandpass_nside, pix_nside)
         self.bandpass_fwhm = max(bandpass_fwhm, self.fwhm)
         self.effdir_out = effdir_out
@@ -431,7 +433,7 @@ class OpReprocRing(toast.Operator):
 
         self.mapsampler_freq = None
         self.mapsamplers = {}
-        self.freq_symmetric = ["pol0", "pol1", "pol2"]
+        self.freq_symmetric = ["pol0", "pol1", "pol2", "dipo_foreground"]
         self.freq_symmetric += [
             "zodi band1",
             "zodi band2",
@@ -1427,13 +1429,21 @@ class OpReprocRing(toast.Operator):
         detflags,
         glob2loc,
     ):
-        # Create a total dipole template by
+        # Create the dipole templates by
         #  1) sampling at the pixel centroids
         #  2) interpolating the sampled values to full TOD
         #  3) phase-binning the interpolated signal into a ring template
-        ring_dipo_total = self.dipoler.dipole(
-            ring.quat, velocity=np.tile(velocity, [nbin, 1]), det=det
-        )
+        # This approach is substantially cheaper than evaluating the directly
+        # to every detector time stamp and then phase-binning it.
+        if self.fgdipole:
+            ring_dipo_total, ring_dipo_fg = self.dipoler.dipole(
+                ring.quat, velocity=np.tile(velocity, [nbin, 1]), det=det,
+                fg_deriv=self.fg_deriv, obs_freq=self.freq,
+            )
+        else:
+            ring_dipo_total = self.dipoler.dipole(
+                ring.quat, velocity=np.tile(velocity, [nbin, 1]), det=det
+            )
         dipo_total = self._interpolate_ring_template(ring, ring_dipo_total, phase)
         ring_dipo_total = bin_ring_extra(
             pixels // self.ndegrade,
@@ -1442,6 +1452,17 @@ class OpReprocRing(toast.Operator):
             ring.pixels,
             glob2loc,
         )
+        if self.fgdipole:
+            dipo_fg = self._interpolate_ring_template(ring, ring_dipo_fg, phase)
+            ring_dipo_fg = bin_ring_extra(
+                pixels // self.ndegrade,
+                dipo_fg.astype(np.float64),
+                pntflags | detflags,
+                ring.pixels,
+                glob2loc,
+            )
+        else:
+            ring_dipo_fg = None
         if self.do_dipo:
             ring_dipo_solsys = self.dipoler.dipole(ring.quat, det=det)
             dipo_solsys = self._interpolate_ring_template(ring, ring_dipo_solsys, phase)
@@ -1466,7 +1487,11 @@ class OpReprocRing(toast.Operator):
             templates[iring][det]["dipo_orbital"] = RingTemplate(ring_dipo_orbital, 0)
             if "dipo_orbital" not in namplitude:
                 namplitude["dipo_orbital"] = 1
-        return ring_dipo_total, ring_dipo_orbital
+            if self.fgdipole:
+                templates[iring][det]["dipo_foreground"] = RingTemplate(ring_dipo_fg, 0)
+                if "dipo_foreground" not in namplitude:
+                    namplitude["dipo_foreground"] = 1
+        return ring_dipo_total, ring_dipo_orbital, ring_dipo_fg
 
     @function_timer
     def _add_fsl_template(
@@ -1979,7 +2004,9 @@ class OpReprocRing(toast.Operator):
 
                 self._add_offset_template(iring, nbin, templates, det, namplitude)
 
-                (ring_dipo_total, ring_dipo_orbital) = self._add_dipole_template(
+                (
+                    ring_dipo_total, ring_dipo_orbital, ring_dipo_fg
+                ) = self._add_dipole_template(
                     ring,
                     iring,
                     templates,
@@ -2028,7 +2055,7 @@ class OpReprocRing(toast.Operator):
                     glob2loc,
                 )
 
-                del ring_dipo_total, ring_dipo_orbital
+                del ring_dipo_total, ring_dipo_orbital, ring_dipo_fg
 
                 if not self.nlcalibrate and self.differentiator is None:
                     continue
@@ -2531,7 +2558,7 @@ class OpReprocRing(toast.Operator):
 
         # Stationary templates will have the average correction
         # across detectors removed due to a degeneracy.
-        # orbital dipole, zodi and the polarization template
+        # orbital dipole, foreground dipole, zodi and the polarization template
         # are not stationary
         stationary = [
             "offset",
@@ -2674,6 +2701,7 @@ class OpReprocRing(toast.Operator):
                 # Mission-long templates
                 for name in [
                     "dipo_orbital",
+                    "dipo_foreground",
                     "fg_deriv",
                     "fg_deriv2",
                     "CO",
@@ -3279,41 +3307,42 @@ class OpReprocRing(toast.Operator):
         phase,
         ring,
     ):
-        if "dipo_orbital" not in templates[iring][det]:
-            return None
-        if "dipo_orbital" in old_fits:
-            old_amp = old_fits["dipo_orbital"]
-        else:
-            old_amp = 0
-        offset = templates[iring][det]["dipo_orbital"].offset
-        amp = self.get_amp(det, offset, baselines, "dipo_orbital")
-        corr = (1 - gain) * old_amp + amp
-        dipotemplate = self._interpolate_ring_template(
-            ring, templates[iring][det]["dipo_orbital"].template, phase
-        )
-        signal -= corr * dipotemplate
-        if "dipo_orbital" not in best_fits:
-            if "dipo_orbital" in old_fits:
-                best_fits["dipo_orbital"] = old_fits["dipo_orbital"]
-            else:
-                best_fits["dipo_orbital"] = 0.0
-            best_fits["dipo_orbital"] += amp * orbital_gain
-        if pairdet is not None:
-            if "dipo_orbital" in pair_old_fits:
-                old_amp = pair_old_fits["dipo_orbital"]
+        for dipo_name in ["dipo_orbital", "dipo_foreground"]:
+            if dipo_name not in templates[iring][det]:
+                continue
+            if dipo_name in old_fits:
+                old_amp = old_fits[dipo_name]
             else:
                 old_amp = 0
-            offset = templates[iring][pairdet]["dipo_orbital"].offset
-            amp = self.get_amp(pairdet, offset, baselines, "dipo_orbital")
-            corr = (1 - pairgain) * old_amp + amp
-            pairsignal -= corr * dipotemplate
-            if "dipo_orbital" not in pair_best_fits:
-                if "dipo_orbital" in pair_old_fits:
-                    pair_best_fits["dipo_orbital"] = pair_old_fits["dipo_orbital"]
+            offset = templates[iring][det][dipo_name].offset
+            amp = self.get_amp(det, offset, baselines, dipo_name)
+            corr = (1 - gain) * old_amp + amp
+            dipotemplate = self._interpolate_ring_template(
+                ring, templates[iring][det][dipo_name].template, phase
+            )
+            signal -= corr * dipotemplate
+            if dipo_name not in best_fits:
+                if dipo_name in old_fits:
+                    best_fits[dipo_name] = old_fits[dipo_name]
                 else:
-                    pair_best_fits["dipo_orbital"] = 0.0
-                pair_best_fits["dipo_orbital"] += amp * orbital_gain
-        del dipotemplate
+                    best_fits[dipo_name] = 0.0
+                best_fits[dipo_name] += amp * orbital_gain
+            if pairdet is not None:
+                if dipo_name in pair_old_fits:
+                    old_amp = pair_old_fits[dipo_name]
+                else:
+                    old_amp = 0
+                offset = templates[iring][pairdet][dipo_name].offset
+                amp = self.get_amp(pairdet, offset, baselines, dipo_name)
+                corr = (1 - pairgain) * old_amp + amp
+                pairsignal -= corr * dipotemplate
+                if dipo_name not in pair_best_fits:
+                    if dipo_name in pair_old_fits:
+                        pair_best_fits[dipo_name] = pair_old_fits[dipo_name]
+                    else:
+                        pair_best_fits[dipo_name] = 0.0
+                    pair_best_fits[dipo_name] += amp * orbital_gain
+            del dipotemplate
         return
 
     @function_timer
@@ -4363,7 +4392,7 @@ class OpReprocRing(toast.Operator):
         if self.rank == 0:
             print("        Loaded map in {:.2f} s".format(stop1 - start1), flush=True)
 
-        # Fill missing pixels in the frequency map to allow inteprolation
+        # Fill missing pixels in the frequency map to allow interpolation
 
         self.comm.Barrier()
         start1 = MPI.Wtime()
@@ -4382,6 +4411,23 @@ class OpReprocRing(toast.Operator):
 
         if np.any(full_map == hp.UNSEEN):
             raise Exception("Plug_holes failed")
+
+        # In certain cases we want to override the polarization estimate
+
+        if self.temperature_only_intermediate and "pol0" in self.best_fit_amplitudes:
+            if self.rank == 0:
+                print(
+                    "        Adding polarization to the gain template", flush=True
+                )
+            qmap = np.zeros_like(full_map)
+            umap = np.zeros_like(full_map)
+            for name in ["pol0", "pol1", "pol2"]:
+                if name not in self.best_fit_amplitudes[det]:
+                    continue
+                amp = self.best_fit_amplitudes[det][name]
+                qmap += amp * self.mapsamplers[name].Map_Q[:]
+                umap += amp * self.mapsamplers[name].Map_U[:]
+            full_map = np.vstack([full_map, qmap, umap])
 
         # Update the frequency map sampler
 
@@ -4905,7 +4951,7 @@ class OpReprocRing(toast.Operator):
                 self.bandpass_fwhm,
                 self.skymodel_cache,
                 self.cache,
-                self.bpcorrect,
+                self.bpcorrect or self.fgdipole,
                 self.bpcorrect2,
             )
 

@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import glob
 import os
 import sys
@@ -36,6 +38,12 @@ nrow2, ncol2 = 4, 8
 fig2 = plt.figure(figsize=[ncol2 * 4, nrow2 * 4])
 axes2 = None
 
+for fig in fig1, fig2:
+    if cumulative:
+        fig.suptitle("Cumulative parameter values")
+    else:
+        fig.suptitle("Non-cumulative parameter values")
+
 dets = None
 
 all_params = None
@@ -69,6 +77,8 @@ for outdir, linestyle in zip(outdirs, ["-", "--", ":"]):
                 param_fits[param] = {}
                 for det in dets:
                     param_fits[param][det] = []
+            if param not in hdulist:
+                continue
             for det in dets:
                 param_fits[param][det].append(hdulist[param].data[det])
         for iparam, param in enumerate(harmonics):
@@ -76,6 +86,8 @@ for outdir, linestyle in zip(outdirs, ["-", "--", ":"]):
                 harmonic_fits[param] = {}
                 for det in dets:
                     harmonic_fits[param][det] = []
+            if param not in hdulist:
+                continue
             for det in dets:
                 harmonic_fits[param][det].append(hdulist[param].data[det])
 
@@ -90,11 +102,24 @@ for outdir, linestyle in zip(outdirs, ["-", "--", ":"]):
         ax.set_title(param)
         for det, color in zip(dets, colors):
             values = param_fits[param][det]
-            if cumulative:
+            limits = []
+            total = 0
+            if cumulative and param not in [
+                    "offset", "pol0", "pol1", "pol2", "pol3", "pol4"
+            ]:
                 for i in range(1, len(values)):
                     values[i] += values[i - 1]
+                    total += len(values[i - 1])
+                    if total > 10:
+                        limits.append(total)
+            if len(values) == 0:
+                continue
             values = np.hstack(values)
+            if np.all(values == 0):
+                continue
             ax.plot(values, label=f"{det} {outdir}", color=color, linestyle=linestyle)
+        for limit in limits:
+            ax.axvline(limit, color="k", linestyle="--")
 
     for iparam, param in enumerate(harmonics):
         if len(axes2) == iparam:
@@ -107,6 +132,8 @@ for outdir, linestyle in zip(outdirs, ["-", "--", ":"]):
                 for i in range(1, len(values)):
                     values[i] += values[i - 1]
             values = np.hstack(values)
+            if np.all(values == 0):
+                continue
             ax.plot(values, label=f"{det} {outdir}", color=color, linestyle=linestyle)
 
 axes1[-1].legend(bbox_to_anchor=(1,1), loc="upper left")

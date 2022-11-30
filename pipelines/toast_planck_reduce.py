@@ -894,6 +894,13 @@ def add_reproc_params(parser):
         help="Adjust overall calibration using orbital dipole fit.",
     )
     parser.add_argument(
+        "--reproc_fgdipole",
+        dest="reproc_fgdipole",
+        default=False,
+        action="store_true",
+        help="Fit and correct for orbital Doppler effect on the Galactic foreground",
+    )
+    parser.add_argument(
         "--reproc_save_maps",
         dest="reproc_save_maps",
         default=False,
@@ -1867,6 +1874,7 @@ def run_reproc(
         fit_distortion=args.reproc_fit_distortion,
         nlcalibrate=args.reproc_nlcalibrate,
         recalibrate=args.reproc_recalibrate,
+        fgdipole=args.reproc_fgdipole,
         save_maps=args.reproc_save_maps,
         save_survey_maps=args.reproc_save_survey_maps,
         save_template_maps=args.reproc_save_template_maps,

@@ -240,8 +240,12 @@ class Dipoler():
         dipole[ind] = self.tcmb * (betaz * (1 + betaz * self.q))
         return det_dir
 
-    def _get_fgdipole(self, tvel, quats, det_dir, ind, fg, fgdipole):
-        # Foregrounds are only modulated by the orbital motion
+    def _get_fgdipole(self, tvel, quats, det_dir, ind, fg_deriv, obs_freq, fgdipole):
+        # Galactic foreground is only modulated by the orbital motion
+        # fg_deriv is the frequency derivative of the foreground at the
+        # observing frequency
+        # obs_freq is the observing frequency. The units between
+        # fg_deriv and obs_freq must be compatible
         speed = np.sqrt(np.sum(tvel ** 2, axis=1))
         if np.any(speed == 0):
             raise Exception('Zero speed in dipole calculation')
@@ -250,23 +254,39 @@ class Dipoler():
         beta = speed * CINV
         if det_dir is None:
             det_dir = qa.rotate(np.atleast_2d(quats)[ind], ZAXIS)
+        theta, phi = qa.to_position(quats)
+        fg_deriv_toi = fg_deriv.at(theta, phi)
         num = 1 - beta * np.sum(proper_dir * det_dir, axis=1)
         invgamma = np.sqrt(1 - beta ** 2)
-        fgdipole[ind] = fg[ind] * (1 / num * invgamma - 1)
+        doppler_factor = invgamma / num
+        # The source frequency is (observing frequency X doppler_factor)
+        # dfreq is (source frequency - observing frequency)
+        dfreq = obs_freq * (doppler_factor - 1)
+        # (dfreq x fg_deriv) is the difference in the foreground between
+        # the observing frequency and the source frequency
+        # the cubed Doppler factor accounts for the (negligible) change
+        # in total intensity due to Relativistic effects
+        fgdipole[ind] = dfreq * fg_deriv_toi * doppler_factor ** 3
         return
 
-    def dipole(self, quats, velocity=None, fg=None, det=None,
+    def dipole(self, quats, velocity=None, fg_deriv=None, obs_freq=None, det=None,
                orbital_only=False):
         """ Evaluate the CMB dipole.
 
         Evaluate the CMB dipole (in K_CMB) according to the solar system
         motion and the optional orbital velocity information (in km/s).
-        if a foreground map and orbital velocity are provided, will also
-        return a foreground Doppler effect.
+        if a foreground derivative map and orbital velocity are provided,
+        will also return a foreground Doppler effect.
         """
-        if velocity is None and fg is not None:
+        if velocity is None and fg_deriv is not None:
             raise RuntimeError(
-                'Cannot evaluate foreground dipole without velocity')
+                'Cannot evaluate foreground dipole without velocity'
+            )
+
+        if obs_freq is None and fg_deriv is not None:
+            raise RuntimeError(
+                'Cannot evaluate foreground dipole without observing frequency'
+            )
 
         detector = det
         if det is not None and det[-1] in '01' and det[-2] != '-':
@@ -274,7 +294,7 @@ class Dipoler():
 
         nsamp = len(np.atleast_2d(quats))
         dipole = np.zeros(nsamp)
-        if fg is not None:
+        if fg_deriv is not None:
             fgdipole = np.zeros(nsamp)
 
         istart = 0
@@ -290,15 +310,15 @@ class Dipoler():
                 det_dir = None
             else:
                 det_dir = self._get_pencil_dipole(proper, quats, ind, dipole)
-            if fg is not None:
-                self._get_fgdipole(tvel, quats, det_dir, ind, fg, fgdipole)
+            if fg_deriv is not None:
+                self._get_fgdipole(tvel, quats, det_dir, ind, fg_deriv, obs_freq, fgdipole)
 
         if len(np.shape(quats)) == 1:
             dipole = dipole[0]
-            if fg is not None:
-                fg = fg[0]
+            if fg_deriv is not None:
+                fg_deriv = fg_deriv[0]
 
-        if fg is None:
+        if fg_deriv is None:
             return dipole
         else:
             return dipole, fgdipole
