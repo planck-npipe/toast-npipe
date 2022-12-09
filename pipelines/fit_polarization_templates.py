@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+separate_plots = True
+
 fname_rimo = "/global/cfs/cdirs/cmb/data/planck2020/npipe/aux/RIMO_HFI_npipe5v16_symmetrized.fits"
 fname_mask = "/global/cfs/cdirs/cmb/data/planck2020/npipe/aux/destriping_mask_857.fits"
 
@@ -161,8 +163,22 @@ for limit in 0.05, 0.10, 0.20, 0.30:
     freqmap = hp.ud_grade(freqmap, nside, order_in="NEST", order_out="RING")
     sfreqmap = hp.smoothing(freqmap, fwhm=fwhm, lmax=lmax, iter=0)
 
-    nrow, ncol = 4, 4
-    fig = plt.figure(figsize=[4 * ncol, 4 * nrow])
+    if separate_plots:
+        nrow, ncol = 2, 2
+        fig1 = plt.figure(figsize=[4 * ncol, 4 * nrow])
+        fig2 = plt.figure(figsize=[4 * ncol, 4 * nrow])
+        fig3 = plt.figure(figsize=[4 * ncol, 4 * nrow])
+        fig4 = plt.figure(figsize=[4 * ncol, 4 * nrow])
+    else:
+        nrow, ncol = 4, 4
+        fig1 = plt.figure(figsize=[4 * ncol, 4 * nrow])
+        fig2 = fig1
+        fig3 = fig1
+        fig4 = fig1
+    num1 = fig1.number
+    num2 = fig2.number
+    num3 = fig3.number
+    num4 = fig4.number
     iplot = 0
 
     # Fit each detector separately
@@ -226,15 +242,43 @@ for limit in 0.05, 0.10, 0.20, 0.30:
         rms1 = np.std(sresid[good])
         rms2 = np.std(cleaned[good])
         amp = 2 * rms1
-        hp.mollview(sresid,                 sub=[nrow, ncol, iplot + 1], title=f"Resid {det} RMS = {rms1:.6f}", min=-amp, max=amp, cmap="bwr")
-        hp.mollview(coeff[1] * spol_full,   sub=[nrow, ncol, iplot + 2], title=f"Pol fit {det} {coeff[1]:.6f}", min=-amp, max=amp, cmap="bwr")
-        hp.mollview(coeff[2] * sderiv_full, sub=[nrow, ncol, iplot + 3], title=f"Deriv fit {det} {coeff[2]:.6f}", min=-amp, max=amp, cmap="bwr")
-        hp.mollview(cleaned,                sub=[nrow, ncol, iplot + 4], title=f"Cleaned {det} RMS = {rms2:.6f}", min=-amp, max=amp, cmap="bwr")
-        iplot += 4
+        iplot += 1
+        plt.figure(num1)
+        hp.mollview(sresid,                 fig=num1, sub=[nrow, ncol, iplot],
+                    title=f"Resid {det} RMS = {rms1:.6f}", min=-amp, max=amp, cmap="bwr")
+        if not separate_plots:
+            iplot += 1
+        plt.figure(num2)
+        hp.mollview(coeff[1] * spol_full,   fig=num2, sub=[nrow, ncol, iplot],
+                    title=f"Pol fit {det} {coeff[1]:.6f}", min=-amp, max=amp, cmap="bwr")
+        if not separate_plots:
+            iplot += 1
+        plt.figure(num3)
+        hp.mollview(coeff[2] * sderiv_full, fig=num3, sub=[nrow, ncol, iplot],
+                    title=f"Deriv fit {det} {coeff[2]:.6f}", min=-amp, max=amp, cmap="bwr")
+        if not separate_plots:
+            iplot += 1
+        plt.figure(num4)
+        hp.mollview(cleaned,                fig=num4, sub=[nrow, ncol, iplot],
+                    title=f"Cleaned {det} RMS = {rms2:.6f}", min=-amp, max=amp, cmap="bwr")
 
-    fname_plot = f"{indir}/residuals_{limit}.png"
-    print(f"Writing plot to {fname_plot}")
-    fig.savefig(fname_plot)
+    if separate_plots:
+        fname_plot = f"{indir}/full_residuals_{limit}.png"
+        print(f"Writing plot to {fname_plot}")
+        fig1.savefig(fname_plot)
+        fname_plot = f"{indir}/pol_fit_{limit}.png"
+        print(f"Writing plot to {fname_plot}")
+        fig2.savefig(fname_plot)
+        fname_plot = f"{indir}/pol_deriv_fit_{limit}.png"
+        print(f"Writing plot to {fname_plot}")
+        fig3.savefig(fname_plot)
+        fname_plot = f"{indir}/cleaned_residuals_{limit}.png"
+        print(f"Writing plot to {fname_plot}")
+        fig4.savefig(fname_plot)
+    else:
+        fname_plot = f"{indir}/residuals_{limit}.png"
+        print(f"Writing plot to {fname_plot}")
+        fig.savefig(fname_plot)
     sys.exit()
 
 # Tabulate the fit values

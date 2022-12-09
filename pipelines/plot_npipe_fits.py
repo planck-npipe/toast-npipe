@@ -30,7 +30,7 @@ if len(sys.argv) == 1:
 
 outdirs = sys.argv[1:]
 
-nrow1, ncol1 = 4, 4
+nrow1, ncol1 = 4, 5
 fig1 = plt.figure(figsize=[ncol1 * 4, nrow1 * 4])
 axes1 = None
 
@@ -142,5 +142,5 @@ axes2[-1].legend(bbox_to_anchor=(1,1), loc="upper left")
 fig1.savefig("parameter_fits.png")
 fig2.savefig("harmonic_fits.png")
 
-fig1.tight_layout()
-fig2.tight_layout()
+#fig1.tight_layout()
+#fig2.tight_layout()

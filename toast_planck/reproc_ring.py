@@ -38,6 +38,7 @@ from .reproc_modules.destripe_tools import (
     bin_ring_extra,
     get_glob2loc,
     fast_scanning,
+    fast_scanning32,
 )
 
 XAXIS, YAXIS, ZAXIS = np.eye(3)
@@ -236,6 +237,8 @@ class OpReprocRing(toast.Operator):
         pol_nside=256,
         pix_nside=None,
         do_zodi=True,
+        differential_zodi=True,
+        independent_zodi=False,
         zodi_cache="./zodi_cache",
         skymodel_cache="./skymodel_cache",
         do_dipo=True,
@@ -356,6 +359,8 @@ class OpReprocRing(toast.Operator):
         self.npix = hp.nside2npix(nside)
         self.ndegrade = (self.pix_nside // self.nside) ** 2
         self.do_zodi = do_zodi
+        self.differential_zodi = differential_zodi
+        self.independent_zodi = independent_zodi
         self.zodi_cache = zodi_cache
         self.skymodel_cache = skymodel_cache
         self.restore_dipole = restore_dipole
@@ -417,6 +422,7 @@ class OpReprocRing(toast.Operator):
         self.last_gainestimators = {}
         self.last_gains = {}
         self.best_fit_amplitudes = {}
+        self.pol_amplitudes = {}
         self.rough_gains = None
         self.old_gains = None
 
@@ -434,14 +440,15 @@ class OpReprocRing(toast.Operator):
         self.mapsampler_freq = None
         self.mapsamplers = {}
         self.freq_symmetric = ["pol0", "pol1", "pol2", "dipo_foreground"]
-        self.freq_symmetric += [
-            "zodi band1",
-            "zodi band2",
-            "zodi band3",
-            "zodi blob",
-            "zodi cloud",
-            "zodi ring",
-        ]
+        if not self.independent_zodi:
+            self.freq_symmetric += [
+                "zodi band1",
+                "zodi band2",
+                "zodi band3",
+                "zodi blob",
+                "zodi cloud",
+                "zodi ring",
+            ]
         self.horn_symmetric = ["dipo_orbital"]
         if not self.asymmetric_fsl:
             self.horn_symmetric.append("fsl")
@@ -495,6 +502,13 @@ class OpReprocRing(toast.Operator):
         header = []
         for key in sorted(self.best_fit_amplitudes[det]):
             value = self.best_fit_amplitudes[det][key]
+            if len(key) > 8:
+                key = "HIERARCH " + key
+            header.append((key, value))
+        # Polarization template amplitudes are in a different dictionary,
+        # unless they were subtracted from the TOD
+        for key in sorted(self.pol_amplitudes[det]):
+            value = self.pol_amplitudes[det][key]
             if len(key) > 8:
                 key = "HIERARCH " + key
             header.append((key, value))
@@ -690,6 +704,7 @@ class OpReprocRing(toast.Operator):
         self.ndet = len(self.dets)
         for det in self.dets:
             self.best_fit_amplitudes[det] = {}
+            self.pol_amplitudes[det] = {}
 
         for det in self.dets:
             pairdet = self.get_pair(det)
@@ -1083,7 +1098,7 @@ class OpReprocRing(toast.Operator):
                 ring.weights,
                 interp_pix=ipix,
                 interp_weights=iweights,
-                pol=False,
+                pol=False, # self.temperature_only_intermediate,  # Uses a smoothed polarization template
             ).astype(np.float64)
             """
             if not self.temperature_only:
@@ -1657,7 +1672,7 @@ class OpReprocRing(toast.Operator):
 
     @function_timer
     def _add_zodi_templates(
-        self, ring, iring, position, nbin, det, namplitude, templates
+        self, ring, iring, position, nbin, det, namplitude, templates, iquweights
     ):
         if self.do_zodi:
             zodidir = "{}/{}/{:04}".format(self.zodi_cache, det, self.nside)
@@ -1668,7 +1683,6 @@ class OpReprocRing(toast.Operator):
             zodifile = os.path.join(zodidir, zodifile)
             ring_zodis = None
             if os.path.isfile(zodifile):
-                # ring_zodis = pickle.load(open(zodifile, 'rb'))
                 ring_zodis = np.fromfile(zodifile, dtype=np.float32).reshape([6, -1])
                 if len(ring_zodis[0]) != len(ring.quat):
                     zodidir_old = zodidir
@@ -1683,22 +1697,23 @@ class OpReprocRing(toast.Operator):
                     ring_zodis = None
             if ring_zodis is None:
                 ring_zodis = self.zodier.zodi(ring.quat, np.tile(position, [nbin, 1]))
-                # Then measure the zodiacal emission in the same
-                # direction 6 months later and remove the common mode.
-                # We only want to remove the seasonally varying part of
-                # zodi emission.
-                ring_zodis2 = self.zodier.zodi(ring.quat, np.tile(-position, [nbin, 1]))
-                ring_zodis -= 0.5 * (ring_zodis + ring_zodis2)
-                del ring_zodis2
+                if self.differential_zodi:
+                    # Then measure the zodiacal emission in the same
+                    # direction 6 months later and remove the common mode.
+                    # We only want to remove the seasonally varying part of
+                    # zodi emission.
+                    ring_zodis2 = self.zodier.zodi(ring.quat, np.tile(-position, [nbin, 1]))
+                    ring_zodis -= 0.5 * (ring_zodis + ring_zodis2)
+                    del ring_zodis2
                 if not os.path.isdir(zodidir):
                     try:
                         os.makedirs(zodidir)
                     except Exception:
                         pass
-                # pickle.dump(ring_zodis, open(zodifile, 'wb'), protocol=2)
                 ring_zodis = ring_zodis.astype(np.float32)
                 ring_zodis.tofile(zodifile)
             for zodiname, ring_zodi in zip(self.zodinames, ring_zodis):
+                # FIXME : this is where we would add polarized Zodi templates
                 templates[iring][det][zodiname] = RingTemplate(ring_zodi, 0)
                 if zodiname not in namplitude:
                     namplitude[zodiname] = 1
@@ -1980,22 +1995,23 @@ class OpReprocRing(toast.Operator):
                     iquweights,
                 )
 
-                self._add_polarization_templates(
-                    ring,
-                    iring,
-                    ring_interp_pix,
-                    ring_interp_weights,
-                    templates,
-                    ring_theta,
-                    ring_phi,
-                    det,
-                    namplitude,
-                    pixels,
-                    pntflags,
-                    detflags,
-                    glob2loc,
-                    iquweights,
-                )
+                if not self.skip_polmaps:
+                    self._add_polarization_templates(
+                        ring,
+                        iring,
+                        ring_interp_pix,
+                        ring_interp_weights,
+                        templates,
+                        ring_theta,
+                        ring_phi,
+                        det,
+                        namplitude,
+                        pixels,
+                        pntflags,
+                        detflags,
+                        glob2loc,
+                        iquweights,
+                    )
 
                 pairdet = self.get_pair(det)
                 if pairdet is not None and pairdet in templates[iring]:
@@ -2035,7 +2051,7 @@ class OpReprocRing(toast.Operator):
                 )
 
                 self._add_zodi_templates(
-                    ring, iring, position, nbin, det, namplitude, templates
+                    ring, iring, position, nbin, det, namplitude, templates, iquweights
                 )
 
                 self._add_calibration_template(
@@ -3513,6 +3529,13 @@ class OpReprocRing(toast.Operator):
                     # Polarization was a nuisance parameter in
                     # temperature_only destriping but we want
                     # to preserve it in the TOD.
+                    # We record the best fit amplitude for use in the
+                    # gain template for submm frequencies
+                    offset = templates[iring][det][name].offset
+                    if offset is None:
+                        continue
+                    amp = self.get_amp(det, offset, baselines, name)
+                    self.pol_amplitudes[det][name] = amp
                     continue
                 if mapsampler.nside == self.bandpass_nside:
                     ipix = interp_pix
@@ -4414,20 +4437,55 @@ class OpReprocRing(toast.Operator):
 
         # In certain cases we want to override the polarization estimate
 
-        if self.temperature_only_intermediate and "pol0" in self.best_fit_amplitudes:
+        if self.temperature_only_intermediate and "pol0" in self.mapsamplers:
+            start1 = MPI.Wtime()
+            if self.rank == 0:
+                det = self.dets[0]
+                print(
+                    "        Adding polarization to freqmap from pol templates",
+                    flush=True
+                )
+                if len(full_map) == 3:
+                    full_map = full_map[0]
+                qmap = np.zeros_like(full_map)
+                umap = np.zeros_like(full_map)
+                nside = hp.get_nside(full_map)
+                npix = full_map.size
+                pix = np.arange(full_map.size, dtype=int)
+                theta, phi = hp.pix2ang(nside, pix, nest=True)
+                del pix
+                interp_pix, interp_weights = hp.get_interp_weights(
+                    self.mapsamplers["pol0"].nside,
+                    theta,
+                    phi,
+                    nest=True,
+                )
+                del theta, phi
+                buf = np.zeros(npix, dtype=np.float64)
+                for name in ["pol0", "pol1", "pol2"]:
+                    if name not in self.pol_amplitudes[det]:
+                        continue
+                    amp = self.pol_amplitudes[det][name]
+                    # Interpolate the pol map to full resolution pixels
+                    fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_Q[:])
+                    qmap += amp * buf
+                    fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_U[:])
+                    umap += amp * buf
+                full_map = np.vstack([full_map, qmap, umap])
+                del qmap, umap, interp_pix, interp_weights, buf
+            self.comm.Bcast(full_map)
+            stop1 = MPI.Wtime()
             if self.rank == 0:
                 print(
-                    "        Adding polarization to the gain template", flush=True
+                    "        Sampled polmap in {:.2f} s".format(stop1 - start1), flush=True
                 )
-            qmap = np.zeros_like(full_map)
-            umap = np.zeros_like(full_map)
-            for name in ["pol0", "pol1", "pol2"]:
-                if name not in self.best_fit_amplitudes[det]:
-                    continue
-                amp = self.best_fit_amplitudes[det][name]
-                qmap += amp * self.mapsamplers[name].Map_Q[:]
-                umap += amp * self.mapsamplers[name].Map_U[:]
-            full_map = np.vstack([full_map, qmap, umap])
+        else:
+            if self.rank == 0:
+                print(
+                    f"        Polarization in the gain template based on frequency map."
+                    f" temperature_only_intermediate = {self.temperature_only_intermediate},"
+                    f" pol_amplitudes = {self.pol_amplitudes}", flush=True
+                )
 
         # Update the frequency map sampler
 
@@ -4476,7 +4534,7 @@ class OpReprocRing(toast.Operator):
         stop = MPI.Wtime()
         if self.rank == 0:
             print(
-                "    Built full frequency map in {:.2f} s" "".format(stop - start),
+                "    Built full frequency map in {:.2f} s".format(stop - start),
                 flush=True,
             )
         return
@@ -4604,9 +4662,9 @@ class OpReprocRing(toast.Operator):
             pol_signal = np.zeros_like(self.tod.local_signal(det))
             pol_signal_deriv = np.zeros_like(self.tod.local_signal(det))
             for name in ["pol0", "pol1", "pol2"]:
-                if name not in self.best_fit_amplitudes[det]:
+                if name not in self.pol_amplitudes[det]:
                     continue
-                amp = self.best_fit_amplitudes[det][name]
+                amp = self.pol_amplitudes[det][name]
                 pol_signal += (
                     self.mapsamplers[name].atpol(theta, phi, iquweights, onlypol=True)
                     * amp
@@ -4987,6 +5045,7 @@ class OpReprocRing(toast.Operator):
 
             self.siter = "_iter{:02}".format(self.iiter)
 
+            self.skip_polmaps = False
             if self.iiter == 0:
                 self.compress_tod(rings, update=False)
                 memreport("after compress tod", self.comm)
@@ -5002,6 +5061,7 @@ class OpReprocRing(toast.Operator):
                 # much smaller mask and disable calibration and
                 # transfer function corrections
                 self.calibrate = False
+                self.nlcalibrate = False
                 self.fit_distortion = False
                 self.recalibrate = False
                 self.nharm = 0
@@ -5012,7 +5072,9 @@ class OpReprocRing(toast.Operator):
                 self.maskfile = self.maskfile_bp
                 self.compress_tod(rings, update=False)
                 self.temperature_only_destripe = False
-                if not self.temperature_only:
+                if self.temperature_only_intermediate:
+                    self.skip_polmaps = True
+                elif not self.temperature_only:
                     self.polmap = None
                     self.polmap2 = None
                     self.polmap3 = None

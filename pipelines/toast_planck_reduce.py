@@ -710,6 +710,20 @@ def add_reproc_params(parser):
         help="Subtract Zodiacal light in reproc",
     )
     parser.add_argument(
+        "--reproc_zodi_total",
+        dest="reproc_zodi_total",
+        default=False,
+        action="store_true",
+        help="Subtract total Zodiacal model, not just seasonally varying part",
+    )
+    parser.add_argument(
+        "--reproc_zodi_detector",
+        dest="reproc_zodi_detector",
+        default=False,
+        action="store_true",
+        help="Fit Zodi for each detector independently",
+    )
+    parser.add_argument(
         "--reproc_zodi_cache", default="./zodi_cache", help="Zodi cache directory"
     )
     parser.add_argument(
@@ -1835,6 +1849,8 @@ def run_reproc(
         nharm=args.reproc_nharm,
         do_bands=args.reproc_do_bands,
         do_zodi=args.reproc_zodi,
+        differential_zodi=not args.reproc_zodi_total,
+        independent_zodi=args.reproc_zodi_detector,
         zodi_cache=args.reproc_zodi_cache,
         pntmask=pntmask,
         # ssomask=ssomask, detmask=1+8,
