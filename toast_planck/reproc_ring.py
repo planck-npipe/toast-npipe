@@ -246,9 +246,6 @@ class OpReprocRing(toast.Operator):
         destriper_pixlim=1e-2,
         do_fsl=True,
         split_fsl=False,
-        fsl_primary="fsl_primary",
-        fsl_secondary="fsl_secondary",
-        fsl_baffle="fsl_baffle",
         cmb=None,
         co=None,
         co2=None,
@@ -277,6 +274,7 @@ class OpReprocRing(toast.Operator):
         out=".",
         forcepol=False,
         forcefsl=False,
+        fslnames=None,
         asymmetric_fsl=False,
         pscorrect=False,
         psradius=30,
@@ -367,9 +365,6 @@ class OpReprocRing(toast.Operator):
         self.do_dipo = do_dipo
         self.do_fsl = do_fsl
         self.split_fsl = split_fsl
-        self.fsl_primary = fsl_primary
-        self.fsl_secondary = fsl_secondary
-        self.fsl_baffle = fsl_baffle
         self.cmb = cmb
         self.co1 = co
         self.co2 = co2
@@ -407,6 +402,7 @@ class OpReprocRing(toast.Operator):
             self.out = out
         self.forcepol = forcepol
         self.forcefsl = forcefsl
+        self.fslnames = fslnames
         self.asymmetric_fsl = asymmetric_fsl
         self.pscorrect = pscorrect
         self.psradius = psradius
@@ -1522,24 +1518,50 @@ class OpReprocRing(toast.Operator):
         namplitude,
         glob2loc,
     ):
-        if not self.do_fsl:
-            return
-        fsl = self.tod.local_fsl(det)
-        ring_fsl = bin_ring_extra(
-            pixels // self.ndegrade,
-            fsl[ind],
-            pntflags | detflags,
-            ring.pixels,
-            glob2loc,
-        )
-        if self.forcefsl:
-            offset = None
-        else:
-            offset = 0
-        templates[iring][det]["fsl"] = RingTemplate(ring_fsl, offset)
-        if not self.forcefsl and "fsl" not in namplitude:
-            namplitude["fsl"] = 1
-        del fsl, ring_fsl
+        if self.do_fsl:
+            # FSL read from disk
+            fsl = self.tod.local_fsl(det)
+            ring_fsl = bin_ring_extra(
+                pixels // self.ndegrade,
+                fsl[ind],
+                pntflags | detflags,
+                ring.pixels,
+                glob2loc,
+            )
+            if self.forcefsl:
+                offset = None
+            else:
+                offset = 0
+            templates[iring][det]["fsl"] = RingTemplate(ring_fsl, offset)
+            if not self.forcefsl and "fsl" not in namplitude:
+                namplitude["fsl"] = 1
+            del fsl, ring_fsl
+        if self.fslnames is not None:
+            # FSL(s) convolved on the fly
+            for fslname in self.fslnames:
+                cachename = f"{fslname}_{det}"
+                fsl = self.tod.cache.reference(cachename)
+                # DEBUG begin
+                if np.any(np.isnan(fsl)):
+                    import pdb
+                    pdb.set_trace()
+                # DEBUG end
+                ring_fsl = bin_ring_extra(
+                    pixels // self.ndegrade,
+                    fsl[ind],
+                    pntflags | detflags,
+                    ring.pixels,
+                    glob2loc,
+                )
+                # DEBUG begin
+                if np.any(np.isnan(ring_fsl)):
+                    import pdb
+                    pdb.set_trace()
+                # DEBUG end
+                templates[iring][det][fslname] = RingTemplate(ring_fsl, 0)
+                if fslname not in namplitude:
+                    namplitude[fslname] = 1
+                del fsl, ring_fsl
         return
 
     @function_timer
@@ -2121,7 +2143,7 @@ class OpReprocRing(toast.Operator):
         del mapsampler_fg
         # We will build FSL and dipole templates by interpolating
         # the phase-binned templates.  Discard the full resolution FSL.
-        self.cache.clear("fsl_.*")
+        self.cache.clear("fsl.*")
 
         memreport("after adding templates", self.comm)
 
@@ -2715,7 +2737,7 @@ class OpReprocRing(toast.Operator):
             for idet, det in enumerate(self.dets):
                 print("    {:8}".format(det), end="")
                 # Mission-long templates
-                for name in [
+                names = [
                     "dipo_orbital",
                     "dipo_foreground",
                     "fg_deriv",
@@ -2728,7 +2750,10 @@ class OpReprocRing(toast.Operator):
                     "pol1",
                     "pol2",
                     "nlgain",
-                ]:
+                ]
+                if self.fslnames is not None:
+                    names += self.fslnames
+                for name in names:
                     if name not in self.template_offsets:
                         continue
                     offset = self.template_offsets[name][0]
@@ -3229,59 +3254,66 @@ class OpReprocRing(toast.Operator):
         phase,
         ring,
     ):
-        if not self.do_fsl:
-            return
-        """
-        fsl = self.tod.local_fsl(det)[ind]
-        if not np.all(np.isfinite(fsl)):
-            print('{} : WARNING: non-finite value in FSL: '
-                  '{} {}'.format(self.rank, det, iring),
-                  flush=True)
-        """
-        if "fsl" in old_fits:
-            old_amp = old_fits["fsl"]
-        else:
-            old_amp = 0
-        if self.forcefsl:
-            amp = 0
-        else:
-            offset = templates[iring][det]["fsl"].offset
-            amp = self.get_amp(det, offset, baselines, "fsl")
-        # signal = (signal/gain + old_amp*fsl)*gain \
-        #          - (old_amp+amp)*fsl
-        #        = signal + old_amp*fsl*gain - (old_amp+amp)*fsl
-        #        = signal + (old_amp*gain - old_amp - amp)*fsl
-        #        = signal + ((gain-1)*old_amp - amp)*fsl
-        #        = signal - ((1-gain)*old_amp + amp)*fsl
-        fsltemplate = self._interpolate_ring_template(
-            ring, templates[iring][det]["fsl"].template, phase
-        )
-        corr = (1 - gain) * old_amp + amp
-        signal -= corr * fsltemplate
-        if "fsl" not in best_fits:
+        if self.do_fsl:
+            # FSL read from disk
             if "fsl" in old_fits:
-                best_fits["fsl"] = old_fits["fsl"]
-            else:
-                best_fits["fsl"] = 0.0
-            best_fits["fsl"] += amp * orbital_gain
-        if pairdet is not None:
-            if "fsl" in pair_old_fits:
-                old_amp = pair_old_fits["fsl"]
+                old_amp = old_fits["fsl"]
             else:
                 old_amp = 0
             if self.forcefsl:
                 amp = 0
             else:
-                offset = templates[iring][pairdet]["fsl"].offset
-                amp = self.get_amp(pairdet, offset, baselines, "fsl")
-            corr = (1 - pairgain) * old_amp + amp
-            pairsignal -= corr * fsltemplate
-            if "fsl" not in pair_best_fits:
-                if "fsl" in pair_old_fits:
-                    pair_best_fits["fsl"] = pair_old_fits["fsl"]
+                offset = templates[iring][det]["fsl"].offset
+                amp = self.get_amp(det, offset, baselines, "fsl")
+            fsltemplate = self._interpolate_ring_template(
+                ring, templates[iring][det]["fsl"].template, phase
+            )
+            corr = (1 - gain) * old_amp + amp
+            signal -= corr * fsltemplate
+            if "fsl" not in best_fits:
+                if "fsl" in old_fits:
+                    best_fits["fsl"] = old_fits["fsl"]
                 else:
-                    pair_best_fits["fsl"] = 0.0
-                pair_best_fits["fsl"] += amp * orbital_gain
+                    best_fits["fsl"] = 0.0
+                best_fits["fsl"] += amp * orbital_gain
+            if pairdet is not None:
+                if "fsl" in pair_old_fits:
+                    old_amp = pair_old_fits["fsl"]
+                else:
+                    old_amp = 0
+                if self.forcefsl:
+                    amp = 0
+                else:
+                    offset = templates[iring][pairdet]["fsl"].offset
+                    amp = self.get_amp(pairdet, offset, baselines, "fsl")
+                corr = (1 - pairgain) * old_amp + amp
+                pairsignal -= corr * fsltemplate
+                if "fsl" not in pair_best_fits:
+                    if "fsl" in pair_old_fits:
+                        pair_best_fits["fsl"] = pair_old_fits["fsl"]
+                    else:
+                        pair_best_fits["fsl"] = 0.0
+                    pair_best_fits["fsl"] += amp * orbital_gain
+        if self.fslnames is not None:
+            # FSL(s) convolved on the fly
+            for fslname in self.fslnames:
+                if fslname in old_fits:
+                    old_amp = old_fits[fslname]
+                else:
+                    old_amp = 0
+                offset = templates[iring][det][fslname].offset
+                amp = self.get_amp(det, offset, baselines, fslname)
+                fsltemplate = self._interpolate_ring_template(
+                    ring, templates[iring][det][fslname].template, phase
+                )
+                corr = (1 - gain) * old_amp + amp
+                signal -= corr * fsltemplate
+                if fslname not in best_fits:
+                    if fslname in old_fits:
+                        best_fits[fslname] = old_fits[fslname]
+                    else:
+                        best_fits[fslname] = 0.0
+                    best_fits[fslname] += amp * orbital_gain
         return
 
     @function_timer

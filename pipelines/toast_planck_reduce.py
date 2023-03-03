@@ -134,6 +134,18 @@ def add_sim_params(parser):
         help="Beams are in Pxx frame, not Dxx",
     )
     parser.add_argument(
+        "--conviqt_sky",
+        required=False,
+        help="Path to sky alm files. Tag DETECTOR will be "
+        "replaced with detector name.",
+    )
+    parser.add_argument(
+        "--conviqt_fsl",
+        required=False,
+        help="Path to beam alm files. Tag DETECTOR will be "
+        "replaced with detector name.  Use ',' to list several FSL flavors",
+    )
+    parser.add_argument(
         "--conviqt_beamfile",
         required=False,
         help="Path to beam alm files. Tag DETECTOR will be "
@@ -1835,7 +1847,19 @@ def apply_filter(args, data):
 
 
 def run_reproc(
-    args, pars, pntmask, ssomask, map_dir, data, outdir, mcmode, mc, fg, fg_deriv, cmb
+        args,
+        pars,
+        pntmask,
+        ssomask,
+        map_dir,
+        data,
+        outdir,
+        mcmode,
+        mc,
+        fg,
+        fg_deriv,
+        cmb,
+        fslnames,
 ):
     """ Reprocess preprocessed or simulated signal.
 
@@ -1899,6 +1923,7 @@ def run_reproc(
         single_nside=args.reproc_nside_single,
         forcepol=args.reproc_forcepol,
         forcefsl=args.reproc_forcefsl,
+        fslnames=fslnames,
         asymmetric_fsl=args.reproc_asymmetric_fsl,
         bpcorrect=args.reproc_bpcorrect,
         pscorrect=args.reproc_pscorrect,
@@ -1981,7 +2006,19 @@ def run_noisesim(args, data, fsample, mc, mpiworld):
     return
 
 
-def run_conviqt(args, data, almfile, rimo, mpiworld):
+def run_conviqt(
+        args,
+        data,
+        file_slm,
+        file_blm,
+        rimo,
+        mpiworld,
+        name="signal",
+        pol=True,
+        remove_monopole=True,
+        remove_dipole=True,
+        normalize_beam=True,
+):
     if data.comm.comm_world.rank == 0:
         print("Applying Conviqt ...", flush=True)
     if args.conviqt_lmax == 0:
@@ -1994,7 +2031,7 @@ def run_conviqt(args, data, almfile, rimo, mpiworld):
     # Clear the old signal, if it exists. OpSimConviqt always adds to
     # the existing signal
     for obs in data.obs:
-        obs["tod"].cache.clear("signal_.*")
+        obs["tod"].cache.clear(f"{name}_.*")
     skyfiles = {}
     beamfiles = {}
     for det in data.obs[0]["tod"].detectors:
@@ -2007,9 +2044,9 @@ def run_conviqt(args, data, almfile, rimo, mpiworld):
             graspdet = "{}_{}_{}".format(freq[1:], det[3:5], arm)
         else:
             graspdet = det
-        skyfile = almfile.replace("FREQ", freq).replace("DETECTOR", det)
+        skyfile = file_slm.replace("FREQ", freq).replace("DETECTOR", det)
         skyfiles[det] = skyfile
-        beamfile = args.conviqt_beamfile.replace("GRASPDETECTOR", graspdet).replace(
+        beamfile = file_blm.replace("GRASPDETECTOR", graspdet).replace(
             "DETECTOR", det
         )
         beamfiles[det] = beamfile
@@ -2021,16 +2058,16 @@ def run_conviqt(args, data, almfile, rimo, mpiworld):
         beamfiles,
         lmax=args.conviqt_lmax,
         beammmax=args.conviqt_mmax,
-        pol=True,
+        pol=pol,
         fwhm=args.conviqt_fwhm,
         order=args.conviqt_order,
         calibrate=True,
         dxx=not args.conviqt_pxx,
         apply_flags=False,
-        out="signal",
-        remove_monopole=True,
-        remove_dipole=True,
-        normalize_beam=True,
+        out=name,
+        remove_monopole=remove_monopole,
+        remove_dipole=remove_dipole,
+        normalize_beam=normalize_beam,
         verbosity=1,
     )
     conviqt.exec(data)
@@ -2038,7 +2075,7 @@ def run_conviqt(args, data, almfile, rimo, mpiworld):
         mpiworld.barrier()
     timer.stop()
     if data.comm.comm_world.rank == 0:
-        timer.report("Conviqt")
+        timer.report(f"Conviqt {name}")
     del conviqt
     memreport("after Conviqt", mpiworld)
 
@@ -2113,7 +2150,7 @@ def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
             if data.comm.comm_world.rank == 0:
                 print("MC {:4} Det {:8} center freq = {:10.3f}".format(mc, det, freq))
     if args.conviqt_beamfile and not args.tfmode:
-        run_conviqt(args, data, almfile, rimo, mpiworld)
+        run_conviqt(args, data, almfile, args.conviqt_beamfile, rimo, mpiworld)
         almfile = None
         add = True
     else:
@@ -2273,6 +2310,29 @@ def main():
     else:
         fg_deriv = None
 
+    if args.conviqt_fsl:
+        if args.conviqt_sky is None:
+            raise RuntimeError("Must set conviqt sky to convolve with sidelobes")
+        fslnames = []
+        for ifsl, fsl in enumerate(args.conviqt_fsl.split(",")):
+            fslname = f"fsl{ifsl}"
+            run_conviqt(
+                args,
+                data,
+                args.conviqt_sky,
+                fsl,
+                rimo,
+                mpiworld,
+                name=fslname,
+                pol=False,
+                remove_monopole=False,
+                remove_dipole=False,
+                normalize_beam=False,
+            )
+            fslnames.append(fslname)
+    else:
+        fslnames = None
+
     for mc in range(args.MC_start, args.MC_start + args.MC_count):
         mpiworld.Barrier()
         there = check_files(data, args, mc)
@@ -2306,6 +2366,7 @@ def main():
             fg,
             fg_deriv,
             cmb,
+            fslnames,
         )
         del cmb
         purge_caches(data, mcmode, mpiworld)
