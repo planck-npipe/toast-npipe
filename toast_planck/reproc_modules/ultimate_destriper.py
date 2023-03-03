@@ -462,9 +462,9 @@ class UltimateDestriper():
 
         # Count the number of baseline amplitudes not associated with
         # offsets (offsets were projected out from other templates)
-        self.non_offset = np.zeros(self.namplitude_tot, dtype=np.bool)
-        self.is_offset = np.zeros(self.namplitude_tot, dtype=np.bool)
-        self.is_gain = np.zeros(self.namplitude_tot, dtype=np.bool)
+        self.non_offset = np.zeros(self.namplitude_tot, dtype=bool)
+        self.is_offset = np.zeros(self.namplitude_tot, dtype=bool)
+        self.is_gain = np.zeros(self.namplitude_tot, dtype=bool)
         for iring, ring in enumerate(self.my_rings):
             for idet, det in enumerate(self.my_dets):
                 if self.pixels[iring][idet] is None:
@@ -952,7 +952,7 @@ class UltimateDestriper():
                 pixels = rings[ring][det].pixels
                 fast_hit_binning(
                     pixels.astype(np.int32) // self.ndegrade, my_hitmap)
-        my_hits = my_hitmap.astype(np.bool).copy()
+        my_hits = my_hitmap.astype(bool).copy()
         del my_hitmap
         self.cache.destroy('my_hitmap')
 

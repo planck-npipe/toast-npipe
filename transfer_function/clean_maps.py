@@ -83,8 +83,8 @@ for subset in '', 'A', 'B':
         def clean_map(m, fgmaps, dipo, cmb):
             nside = hp.get_nside(dipo)
             npix = 12 * nside ** 2
-            good = np.zeros(npix, dtype=np.bool)
-            bad = np.ones(npix, dtype=np.bool)
+            good = np.zeros(npix, dtype=bool)
+            bad = np.ones(npix, dtype=bool)
             for fgmap in fgmaps:
                 fgi = fgmap[0] - dipo
                 fgp = np.sqrt(fgmap[1]**2 + fgmap[2]**2)
@@ -195,7 +195,7 @@ for subset in '', 'A', 'B':
             # Use jackknife resampling to measure variance
             n = x.size
             cn = np.zeros(n)
-            good = np.ones(n, dtype=np.bool)
+            good = np.ones(n, dtype=bool)
             for i in range(n):
                 good[i] = False
                 cn[i] = get_corr(x[good], y[good])
@@ -310,7 +310,7 @@ for subset in '', 'A', 'B':
                 # Apply the transfer function between ell=2 and ell=10
                 # and only when it is less than 1.
                 n = c.size
-                use_c = np.zeros(n, dtype=np.bool)
+                use_c = np.zeros(n, dtype=bool)
                 use_c[2:11] = True
                 use_c[c > 1] = False
                 if mode == 'E':

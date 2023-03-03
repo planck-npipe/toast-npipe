@@ -198,7 +198,7 @@ class SignalEstimator():
         # smooth value with the binned value. These bins are driven by intense
         # and sharp signal such as planets and bright point sources
 
-        intense = np.zeros(nbin, dtype=np.bool)
+        intense = np.zeros(nbin, dtype=bool)
         # Very hot regions are always considered intense
         for ibin in range(nbin):
             intense[ibin] = self.bin_hit[ibin] == 0 \

@@ -790,10 +790,10 @@ class Exchange(TOD):
         # We need to process one extra sample in both ends of the
         # interval because we want to extend the "none" flags
 
-        is_hcm = np.zeros(len(commonflag) + 2, dtype=np.bool)
-        is_scm = np.zeros(len(commonflag) + 2, dtype=np.bool)
-        is_ocm = np.zeros(len(commonflag) + 2, dtype=np.bool)
-        is_none = np.ones(len(commonflag) + 2, dtype=np.bool)
+        is_hcm = np.zeros(len(commonflag) + 2, dtype=bool)
+        is_scm = np.zeros(len(commonflag) + 2, dtype=bool)
+        is_ocm = np.zeros(len(commonflag) + 2, dtype=bool)
+        is_none = np.ones(len(commonflag) + 2, dtype=bool)
 
         first = self.local_samples[0] + local_start - margin - 1
         last = first + n + 2 * margin + 2

@@ -59,7 +59,7 @@ def get_corr_and_var(x, y):
     # Use jackknife resampling to measure variance
     n = x.size
     cn = np.zeros(n)
-    good = np.ones(n, dtype=np.bool)
+    good = np.ones(n, dtype=bool)
     for i in range(n):
         good[i] = False
         cn[i] = get_corr(x[good], y[good])
@@ -99,8 +99,8 @@ def load_map(fn_in, fn_out, nside, fwhm, lmax):
 def clean_map(m, fgmaps, dipo, cmb):
     nside = hp.get_nside(dipo)
     npix = 12 * nside ** 2
-    good = np.zeros(npix, dtype=np.bool)
-    bad = np.ones(npix, dtype=np.bool)
+    good = np.zeros(npix, dtype=bool)
+    bad = np.ones(npix, dtype=bool)
     # Derive a regression mask by excluding pixels with
     #   a) too much foreground intensity
     #   b) too little foreground polarization
@@ -142,8 +142,8 @@ def clean_map(m, fgmaps, dipo, cmb):
 def clean_map(m, fgmaps, dipo, cmb):
     nside = hp.get_nside(dipo)
     npix = 12 * nside ** 2
-    good = np.zeros(npix, dtype=np.bool)
-    bad = np.ones(npix, dtype=np.bool)
+    good = np.zeros(npix, dtype=bool)
+    bad = np.ones(npix, dtype=bool)
     # Derive a regression mask by excluding pixels with
     #   a) too much foreground intensity
     #   b) too little foreground polarization

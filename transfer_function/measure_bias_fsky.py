@@ -266,7 +266,7 @@ for fsky in 10, 20, 30, 40, 50, 60, 70, 80, 90:
                 # Apply the transfer function between ell=2 and ell=10
                 # and only when it is less than 1.
                 n = c.size
-                use_c = np.zeros(n, dtype=np.bool)
+                use_c = np.zeros(n, dtype=bool)
                 use_c[2:11] = True
                 # use_c[c > 1] = False
                 # if mode == "E":

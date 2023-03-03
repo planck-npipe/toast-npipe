@@ -667,7 +667,7 @@ class OpReprocRing(toast.Operator):
 
         self.local_start_times = timestamps[self.local_starts]
         self.local_stop_times = timestamps[self.local_stops - 1]
-        self.local_bad_rings = np.zeros(len(intervals), dtype=np.bool)
+        self.local_bad_rings = np.zeros(len(intervals), dtype=bool)
 
         # Establish a ring index relative to the first ring on the first
         # process.

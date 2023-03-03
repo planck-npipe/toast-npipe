@@ -613,7 +613,7 @@ class InputEstimator():
                 # and make the poorly sampled end points usable
 
                 nwin = min(101, (nlmap.size // 8) * 4 + 1)
-                good = np.ones(bin_centers.size, dtype=np.bool)
+                good = np.ones(bin_centers.size, dtype=bool)
                 good[:nwin] = False
                 good[-nwin:] = False
                 steps = np.diff(bin_centers)

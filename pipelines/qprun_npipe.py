@@ -184,7 +184,7 @@ def my_create_bololist_w8(detset, RIMO):
     dets = list_planck(detset)
     ndet = len(dets)
     w8 = np.zeros(ndet, dtype=float)
-    psb = np.zeros(ndet, dtype=np.bool)
+    psb = np.zeros(ndet, dtype=bool)
     rho = np.zeros(ndet, dtype=float)
     for idet, det in enumerate(dets):
         if det[-1] in 'abMS':

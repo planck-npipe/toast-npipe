@@ -176,7 +176,7 @@ for subset in "", "A", "B":
         # Flag the a_lm we want to measure the transfer function for
         nmc = len(alms)
         ncomp, nalm = np.shape(alms[0])
-        ind = np.zeros([ncomp, nalm], dtype=np.bool)
+        ind = np.zeros([ncomp, nalm], dtype=bool)
         for ell in range(lmin_fit, lmax_fit + 1):
             for m in range(ell + 1):
                 ix = hp.Alm.getidx(lmax, ell, m)
@@ -202,7 +202,7 @@ for subset in "", "A", "B":
         # Flag the a_lm we want to measure the transfer function for
         # (truncated version)
         ncomp, nalm = np.shape(fit_alms[0])
-        ind = np.zeros([ncomp, nalm], dtype=np.bool)
+        ind = np.zeros([ncomp, nalm], dtype=bool)
         lparamreal = []
         mparamreal = []
         lparamimag = []

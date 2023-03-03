@@ -179,7 +179,7 @@ class OpBeamReconstructor(toast.Operator):
                 masksampler = MapSampler(
                     self._maskfile, comm=cworld, dtype=np.byte,
                     cache=tod.cache)
-                maskflag = np.zeros(nsamp + 2 * margin, dtype=np.bool)
+                maskflag = np.zeros(nsamp + 2 * margin, dtype=bool)
             else:
                 masksampler = None
                 maskflag = None
@@ -272,7 +272,7 @@ class OpBeamReconstructor(toast.Operator):
                 if self._ssomask is not None:
                     ssoflag = (flags & self._ssomask) != 0
                 else:
-                    ssoflag = np.zeros(nsamp, dtype=np.bool)
+                    ssoflag = np.zeros(nsamp, dtype=bool)
 
                 # Add ring flags
 

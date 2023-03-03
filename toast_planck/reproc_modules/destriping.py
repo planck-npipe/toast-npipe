@@ -960,12 +960,12 @@ class FancyDestriperPol():
                     ii = my_ind[ibad]
                     istart = ii[0] * self.naverage
                     istop = ii[1] * self.naverage
-                    if flag[idet].dtype == np.bool:
+                    if flag[idet].dtype == bool:
                         flag[idet][istart:istop] = True
                     else:
                         flag[idet][istart:istop] |= np.uint8(255)
                     if flag_out is not None:
-                        if flag_out[idet].dtype == np.bool:
+                        if flag_out[idet].dtype == bool:
                             flag_out[idet][istart:istop] = True
                         else:
                             flag_out[idet][istart:istop] |= np.uint8(255)
@@ -1542,7 +1542,7 @@ class FancyDestriperPol():
             good = np.logical_not(flag[idet])
             destripe_tools.fast_hit_binning(
                 pixels[idet][good].astype(np.int32) // self.ndegrade, my_hitmap)
-        my_hits = my_hitmap.astype(np.bool).copy()
+        my_hits = my_hitmap.astype(bool).copy()
         del my_hitmap
         self.cache.destroy('my_hitmap')
 

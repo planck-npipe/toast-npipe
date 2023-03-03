@@ -48,7 +48,7 @@ class RingMasker():
         and produce a vector of flags.
 
         """
-        out = np.zeros(len(time), dtype=np.bool)
+        out = np.zeros(len(time), dtype=bool)
 
         if det not in self.bad_rings and 'ALL' not in self.bad_rings:
             return out

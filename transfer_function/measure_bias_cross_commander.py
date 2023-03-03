@@ -232,7 +232,7 @@ for freqpair in freqpairs:
             err = errors[mode + mode][freqpair]
             # Apply the transfer function between ell=2 and ell=10
             n = c.size
-            use_c = np.zeros(n, dtype=np.bool)
+            use_c = np.zeros(n, dtype=bool)
             use_c[2:11] = True
             # use_c[c > 1] = False
             # if mode == 'E':

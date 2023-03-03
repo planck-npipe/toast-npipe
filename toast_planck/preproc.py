@@ -373,8 +373,8 @@ class OpPreproc(toast.Operator):
             ('pnt_frac', float), ('mask_frac', float),
             ('bad_frac', float), ('minval', float), ('maxval', float),
             ('mean', float), ('median', float), ('rms', float),
-            ('failed', np.bool), ('outlier', np.bool),
-            ('despikererror', np.bool), ('timeout', np.bool)]
+            ('failed', bool), ('outlier', bool),
+            ('despikererror', bool), ('timeout', bool)]
         for linefreq in [10, 20, 30, 40, 50, 60, 70, 80,
                          17, 16, 25, 43, 46, 48, 57]:
             dtype += [('cos_ampl_{:02}Hz'.format(linefreq), float),
@@ -661,7 +661,7 @@ class OpPreproc(toast.Operator):
         else:
             mean_good_spinrate = np.mean(spinrate[good])
         bad = np.logical_not(good)
-        spinflag = np.zeros(phase.size, dtype=np.bool)
+        spinflag = np.zeros(phase.size, dtype=bool)
         spinflag[:-1][bad] = True
         spinflag[1:][bad] = True
         return spinflag, mean_spinrate, mean_good_spinrate
@@ -1476,8 +1476,8 @@ class OpPreproc(toast.Operator):
             ('bad_frac', float), ('minval', float), ('maxval', float),
             ('mean', float), ('median', float), ('rms', float),
             ('spinrate', float), ('spinrate_good', float),
-            ('failed', np.bool), ('outlier', np.bool),
-            ('despikererror', np.bool), ('timeout', np.bool)]
+            ('failed', bool), ('outlier', bool),
+            ('despikererror', bool), ('timeout', bool)]
 
         if self._lfi_mode:
             for diode in [0, 1]:
@@ -1616,7 +1616,7 @@ class OpPreproc(toast.Operator):
             ssoflag = (flags & self._ssomask) != 0
         else:
             if self._flag_planets:
-                ssoflag = np.zeros(self.nsamp, dtype=np.bool)
+                ssoflag = np.zeros(self.nsamp, dtype=bool)
             else:
                 ssoflag = None
 
@@ -2211,7 +2211,7 @@ class OpPreproc(toast.Operator):
     def _get_outliers(self, ringinfo, fields, tol=5.0, jumpmax=2,
                       wmean=1001, werr=1001):
 
-        outliers = np.zeros(len(ringinfo), dtype=np.bool)
+        outliers = np.zeros(len(ringinfo), dtype=bool)
 
         outliers[ringinfo.failed] = True
         outliers[ringinfo.pnt_frac > .2] = True

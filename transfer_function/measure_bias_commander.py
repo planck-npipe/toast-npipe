@@ -256,11 +256,11 @@ for subset in "", "A", "B":
             # and only when it is less than 1.
             n = c.size
             if False:
-                use_c = np.zeros(n, dtype=np.bool)
+                use_c = np.zeros(n, dtype=bool)
                 use_c[2:11] = True
                 # use_c[c > 1] = False
             else:
-                use_c = np.ones(n, dtype=np.bool)
+                use_c = np.ones(n, dtype=bool)
             # if mode == "E":
             #    # use_c[err > .1] = False
             #    use_c[err > err[2]] = False

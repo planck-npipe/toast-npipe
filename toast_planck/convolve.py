@@ -71,7 +71,7 @@ class OpConvolvePlanck(toast.Operator):
                     flags = tod.local_flags(det)
                 else:
                     # Just a dummy vector
-                    flags = np.zeros(signal.size, dtype=np.bool)
+                    flags = np.zeros(signal.size, dtype=bool)
                 for (istart, istop) in zip(local_starts, local_stops):
                     ind = slice(istart, istop)
                     signal[ind], flags[ind] = convolver.deconvolve(signal[ind],

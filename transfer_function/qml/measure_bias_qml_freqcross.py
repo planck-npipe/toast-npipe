@@ -281,10 +281,10 @@ for freqpair in freqpairs:
             n = c.size
             if False:
                 # Apply the transfer function between ell=2 and ell=10
-                use_c = np.zeros(n, dtype=np.bool)
+                use_c = np.zeros(n, dtype=bool)
                 use_c[2:11] = True
             else:
-                use_c = np.ones(n, dtype=np.bool)
+                use_c = np.ones(n, dtype=bool)
             # use_c[c > 1] = False
             #if mode == "E":
             #    # use_c[err > .1] = False

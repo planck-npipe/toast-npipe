@@ -37,7 +37,7 @@ class PlanetFlagger():
         """
         Flag all planets out to radius [arcmin]
         """
-        flags = np.zeros(len(theta), dtype=np.bool)
+        flags = np.zeros(len(theta), dtype=bool)
         cosmin = np.cos(radius * arcmin)
         for planet in self.planets:
             cosdist = planet.cosdist(theta, phi, timestamps)

@@ -102,7 +102,7 @@ class DestriperPolTest(MPITestCase):
             # signal1[i] = np.sum(sky[p] * weights1[i])
             template1[i] = np.sum(template_sky[p] * weights1[i])
         templates1 = [template1]
-        flag1 = np.zeros(my_nsamp, dtype=np.bool)
+        flag1 = np.zeros(my_nsamp, dtype=bool)
         flag1[np.logical_and(t >= nsamp_tot // 4,
                              t <= 3 * nsamp_tot // 4)] = True
         signal1 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma1
@@ -125,7 +125,7 @@ class DestriperPolTest(MPITestCase):
             signal2[i] = np.sum(sky[p] * weights2[i])
             template2[i] = np.sum(template_sky[p] * weights2[i])
         templates2 = [template2]
-        flag2 = np.zeros(my_nsamp, dtype=np.bool)
+        flag2 = np.zeros(my_nsamp, dtype=bool)
         signal2 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma2
 
         clean_toi.append(signal2.copy())
@@ -146,7 +146,7 @@ class DestriperPolTest(MPITestCase):
             signal3[i] = np.sum(sky[p] * weights3[i])
             template3[i] = np.sum(template_sky[p] * weights3[i])
         templates3 = [template3]
-        flag3 = np.zeros(my_nsamp, dtype=np.bool)
+        flag3 = np.zeros(my_nsamp, dtype=bool)
         signal3 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma3
 
         clean_toi.append(signal3.copy())
@@ -166,7 +166,7 @@ class DestriperPolTest(MPITestCase):
             signal4[i] = np.sum(sky[p] * weights4[i])
             template4[i] = np.sum(template_sky[p] * weights4[i])
         templates4 = [template4]
-        flag4 = np.zeros(my_nsamp, dtype=np.bool)
+        flag4 = np.zeros(my_nsamp, dtype=bool)
         signal4 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma4
 
         clean_toi.append(signal4.copy())
@@ -264,7 +264,7 @@ class DestriperPolTest(MPITestCase):
         for i, p in enumerate(pixels1):
             signal1[i] = np.sum(sky[p] * weights1[i])
         templates1 = [template1]
-        flag1 = np.zeros(my_nsamp, dtype=np.bool)
+        flag1 = np.zeros(my_nsamp, dtype=bool)
         flag1[np.logical_and(t >= nsamp_tot // 4,
                              t <= 3 * nsamp_tot // 4)] = True
         signal1 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma1
@@ -345,7 +345,7 @@ class DestriperPolTest(MPITestCase):
         for i, p in enumerate(pixels1):
             signal1[i] = sky[p]
         templates1 = [template1]
-        flag1 = np.zeros(my_nsamp, dtype=np.bool)
+        flag1 = np.zeros(my_nsamp, dtype=bool)
         flag1[np.logical_and(t >= nsamp_tot // 4,
                              t <= 3 * nsamp_tot // 4)] = True
         signal1 += np.random.randn(nsamp_tot)[my_first:my_last] * sigma1

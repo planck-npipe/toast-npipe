@@ -44,8 +44,8 @@ def load_map(fn_in, fn_out, nside, fwhm, lmax):
 def clean_maps(maps, fgmaps, dipo):
     nside = hp.get_nside(dipo)
     npix = 12 * nside ** 2
-    good = np.zeros(npix, dtype=np.bool)
-    bad = np.ones(npix, dtype=np.bool)
+    good = np.zeros(npix, dtype=bool)
+    bad = np.ones(npix, dtype=bool)
     for fgmap in fgmaps:
         fgi = fgmap[0] - dipo
         fgp = np.sqrt(fgmap[1]**2 + fgmap[2]**2)
@@ -150,7 +150,7 @@ def get_corr_and_var(x, y):
     # Use jackknife resampling to measure variance
     n = x.size
     cn = np.zeros(n)
-    good = np.ones(n, dtype=np.bool)
+    good = np.ones(n, dtype=bool)
     for i in range(n):
         good[i] = False
         cn[i] = get_corr(x[good], y[good])

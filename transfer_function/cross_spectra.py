@@ -32,8 +32,8 @@ def get_cleaned_map(fname, freq):
         sfreq = '{:03}'.format(freq)
         fgmaps = []
         npix = 12 * nside ** 2
-        good = np.zeros(npix, dtype=np.bool)
-        bad = np.ones(npix, dtype=np.bool)
+        good = np.zeros(npix, dtype=bool)
+        bad = np.ones(npix, dtype=bool)
         if freq != 217:
             fgfreqs = [30, 217, 353]
         else:
