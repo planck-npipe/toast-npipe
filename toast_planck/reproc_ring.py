@@ -1990,6 +1990,24 @@ class OpReprocRing(toast.Operator):
                 nbin = ring.pixels.size
 
                 ring_theta, ring_phi = qa.to_position(ring.quat)
+                # DEBUG begin
+                # ring_theta, ring_phi, ring_psi = qa.to_angles(ring.quat)
+                # fname_pickle = f"ring_pointing_{iring}_{det}.pck"
+                # with open(fname_pickle, "wb") as f:
+                #     pickle.dump(
+                #         {
+                #             "det" : det,
+                #             "psi_pol" : self.rimo[det].psi_pol,
+                #             "psi_uv" : self.rimo[det].psi_uv,
+                #             "theta" : ring_theta,
+                #             "phi" : ring_phi,
+                #             "psi" : ring_psi,
+                #             "phase" : ring.phase,
+                #             "pixels" : ring.pixels,
+                #         },
+                #         f,
+                #     )
+                # DEBUG end
 
                 ring_interp_pix, ring_interp_weights = hp.get_interp_weights(
                     self.bandpass_nside, ring_theta, ring_phi, nest=True
