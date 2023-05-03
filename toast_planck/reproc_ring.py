@@ -1606,7 +1606,7 @@ class OpReprocRing(toast.Operator):
                 sidelobe_quat = qa.mult(qa.rotation(ZAXIS, dphi_fsl), qa.rotation(YAXIS, dtheta_fsl))
                 full_quat = qa.mult(det_quat, sidelobe_quat)
                 vec_sl = qa.rotate(full_quat, ZAXIS).T
-                pix_sl = hp.vec2pix(self.nside_fsl[det], *vec_sl)
+                pix_sl = hp.vec2pix(self.nside_fsl[det], *vec_sl, nest=self.mapsampler_freq.nest)
                 ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl] #sampler.at(theta_fsl, phi_fsl) #sky[pix_sl] - np.mean(sky[pix_sl])
                 ring_fsl -= np.mean(ring_fsl)
                 templates[iring][det][fslname] = RingTemplate(ring_fsl, 0)
