@@ -2018,8 +2018,7 @@ class OpReprocRing(toast.Operator):
                     self.fslbeam_mask[det] = hp.read_map(self.fslbeam_mask_path[det])
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
                     self.fsl_pixels[det] = np.arange(12*self.nside_fsl[det]**2)[self.fslbeam_mask[det]]
-                    # FIX ME : check pixelization 
-                    self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det])
+                    self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order)
             
         self.local_dipo_amp = np.zeros(self.nring)
         self.local_calib_rms = np.zeros(self.nring)
@@ -4683,8 +4682,7 @@ class OpReprocRing(toast.Operator):
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
             for det in self.dets:
-                # FIX ME: nested or ring!
-                self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det])
+                self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order)
         
         """
         Smoothing the polarization template may compromise single detector maps
