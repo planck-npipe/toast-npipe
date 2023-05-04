@@ -2008,7 +2008,7 @@ class OpReprocRing(toast.Operator):
 
         # Load FSL beam mask and corresponding low resolution sky model (one for each detector)
         if self.fslbeam_mask_path is not None:
-            if self.fslbeam_mask == None:
+            if self.fslbeam_mask is None:
                 self.fslbeam_mask = {}
                 self.nside_fsl = {}
                 self.fsl_pixels = {}
