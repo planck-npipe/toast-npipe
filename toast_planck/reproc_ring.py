@@ -1592,27 +1592,31 @@ class OpReprocRing(toast.Operator):
             # first position but quaternionarray module has it at the end, we
             # use the quaternionarray convention
             # scalar part:
-            det_quat[:,3] = np.cos(0.5 * ring_theta) * np.cos(0.5 * (ring_phi + psi))
+            det_quat[:, 3] = np.cos(0.5 * ring_theta) * np.cos(0.5 * (ring_phi + psi))
             # vector part
-            det_quat[:,0] = -np.sin(0.5 * ring_theta) * np.sin(0.5 * (ring_phi - psi))
-            det_quat[:,1] = np.sin(0.5 * ring_theta) * np.cos(0.5 * (ring_phi - psi))
-            det_quat[:,2] = np.cos(0.5 * ring_theta) * np.sin(0.5 * (ring_phi + psi))
+            det_quat[:, 0] = -np.sin(0.5 * ring_theta) * np.sin(0.5 * (ring_phi - psi))
+            det_quat[:, 1] = np.sin(0.5 * ring_theta) * np.cos(0.5 * (ring_phi - psi))
+            det_quat[:, 2] = np.cos(0.5 * ring_theta) * np.sin(0.5 * (ring_phi + psi))
 
             ## Build FSL templates pixel by pixel
             for fsl_pixel in self.fsl_pixels[det]:
                 fslname = f'pixelized_fsl-{fsl_pixel}'
-                dtheta_fsl, dphi_fsl = hp.pix2ang(self.nside_fsl[det], fsl_pixel)
+                dtheta_fsl, dphi_fsl = hp.pix2ang(self.nside_fsl[det], fsl_pixel, nest=False)
                 # Sidelobe pixel rotation
-                sidelobe_quat = qa.mult(qa.rotation(ZAXIS, dphi_fsl), qa.rotation(YAXIS, dtheta_fsl))
+                sidelobe_quat = qa.mult(
+                    qa.rotation(ZAXIS, dphi_fsl),
+                    qa.rotation(YAXIS, dtheta_fsl)
+                )
                 full_quat = qa.mult(det_quat, sidelobe_quat)
                 vec_sl = qa.rotate(full_quat, ZAXIS).T
-                pix_sl = hp.vec2pix(self.nside_fsl[det], *vec_sl, nest=self.mapsampler_freq.nest)
-                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl] #sampler.at(theta_fsl, phi_fsl) #sky[pix_sl] - np.mean(sky[pix_sl])
+                pix_sl = hp.vec2pix(self.nside_fsl[det], *vec_sl, nest=False)
+                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl]
                 ring_fsl -= np.mean(ring_fsl)
                 templates[iring][det][fslname] = RingTemplate(ring_fsl, 0)
                 if fslname not in namplitude:
                     namplitude[fslname] = 1
             del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
+
         return
 
     @function_timer
@@ -2006,7 +2010,8 @@ class OpReprocRing(toast.Operator):
             self.mapsampler_freq = mapsampler_fg
             self.mapsampler_freq_has_dipole = False
 
-        # Load FSL beam mask and corresponding low resolution sky model (one for each detector)
+        # Load FSL beam mask and corresponding low resolution sky model
+        # (one for each detector)
         if self.fslbeam_mask_path is not None:
             if self.fslbeam_mask is None:
                 self.fslbeam_mask = {}
@@ -2015,10 +2020,20 @@ class OpReprocRing(toast.Operator):
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
                 for det in self.dets:
-                    self.fslbeam_mask[det] = hp.read_map(self.fslbeam_mask_path[det])
+                    self.fslbeam_mask[det] = hp.read_map(
+                        self.fslbeam_mask_path[det], nest=False
+                    ) != 0
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
-                    self.fsl_pixels[det] = np.arange(12*self.nside_fsl[det]**2)[self.fslbeam_mask[det]]
-                    self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order)
+                    self.fsl_pixels[det] = np.arange(
+                        12 * self.nside_fsl[det]**2
+                    )[self.fslbeam_mask[det]]
+                    # Downgrade and reorder to ring since pix2vec is faster
+                    self.downgraded_mapsampler_freq[det] = hp.ud_grade(
+                        self.mapsampler_freq.Map[:],
+                        self.nside_fsl[det],
+                        order_in=self.mapsampler_freq.order,
+                        order_out="RING",
+                    )
             
         self.local_dipo_amp = np.zeros(self.nring)
         self.local_calib_rms = np.zeros(self.nring)
@@ -2526,7 +2541,10 @@ class OpReprocRing(toast.Operator):
                 hits = rings[iring][det].hits * rings[iring][det].mask
                 arr, names = [], []
                 for name in templates[iring][det]:
-                    if "zodi" in name or "harmonic" in name or "offset" in name:
+                    if "zodi" in name or \
+                       "harmonic" in name or \
+                       "offset" in name or \
+                       "pixelized_fsl" in name:
                         # Only use a subset of the available templates
                         continue
                     template = templates[iring][det][name]
@@ -4682,7 +4700,7 @@ class OpReprocRing(toast.Operator):
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
             for det in self.dets:
-                self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order)
+                self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order, order_out="RING")
         
         """
         Smoothing the polarization template may compromise single detector maps
