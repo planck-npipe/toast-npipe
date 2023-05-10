@@ -16,6 +16,7 @@ import copy
 import glob
 import os
 import pickle
+import gc
 
 import astropy.io.fits as pf
 import healpy as hp
@@ -2019,6 +2020,14 @@ class OpReprocRing(toast.Operator):
                 self.fsl_pixels = {}
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
+                
+                # Temporary high resolution map in RING scheme built only in root
+                if self.rank == 0:
+                    if self.mapsampler_freq.nest:
+                        mapfreq_ring = hp.reorder(self.mapsampler_freq.Map[:], n2r=True)
+                    else:
+                        mapfreq_ring = self.mapsampler_freq.Map[:]
+                
                 for det in self.dets:
                     self.fslbeam_mask[det] = hp.read_map(
                         self.fslbeam_mask_path[det], nest=False
@@ -2027,14 +2036,33 @@ class OpReprocRing(toast.Operator):
                     self.fsl_pixels[det] = np.arange(
                         12 * self.nside_fsl[det]**2
                     )[self.fslbeam_mask[det]]
-                    # Downgrade and reorder to ring since pix2vec is faster
-                    self.downgraded_mapsampler_freq[det] = hp.ud_grade(
-                        self.mapsampler_freq.Map[:],
-                        self.nside_fsl[det],
-                        order_in=self.mapsampler_freq.order,
-                        order_out="RING",
-                    )
-            
+                    
+                    # Smooth, downgrade and reorder to ring since pix2vec is faster
+                    # Intermediary objects built only in root then final low res. map is broadcasted
+                    if self.rank == 0:
+                        downgraded_alm = hp.map2alm(
+                            mapfreq_ring,
+                            lmax=3*self.nside_fsl[det]-1,
+                            pol=False,
+                        )
+                        self.downgraded_mapsampler_freq[det] = hp.alm2map(
+                            downgraded_alm,
+                            nside=self.nside_fsl[det],
+                            fwhm=3*hp.nside2resol(self.nside_fsl[det]),
+                            pol=False,
+                            inplace=True,
+                        )
+                    else:
+                        self.downgraded_mapsampler_freq[det] = np.empty(hp.nside2npix(self.nside_fsl[det]), dtype=float)
+                    self.comm.Bcast(self.downgraded_mapsampler_freq[det], root=0)
+                    # self.downgraded_mapsampler_freq[det] = hp.ud_grade(
+                    #     self.mapsampler_freq.Map[:],
+                    #     self.nside_fsl[det],
+                    #     order_in=self.mapsampler_freq.order,
+                    #     order_out="RING",
+                    # )
+                if self.rank == 0:
+                    del mapfreq_ring, downgraded_alm
         self.local_dipo_amp = np.zeros(self.nring)
         self.local_calib_rms = np.zeros(self.nring)
 
@@ -4699,9 +4727,36 @@ class OpReprocRing(toast.Operator):
 
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
+            if self.rank == 0:
+                if self.mapsampler_freq.nest:
+                    mapfreq_ring = hp.reorder(self.mapsampler_freq.Map[:], n2r=True)
+                else:
+                    mapfreq_ring = self.mapsampler_freq.Map[:]
             for det in self.dets:
-                self.downgraded_mapsampler_freq[det] = hp.ud_grade(self.mapsampler_freq.Map[:], self.nside_fsl[det], order_in=self.mapsampler_freq.order, order_out="RING")
-        
+                if self.rank == 0:
+                    downgraded_alm = hp.map2alm(
+                        mapfreq_ring,
+                        lmax=3*self.nside_fsl[det]-1,
+                        pol=False,
+                    )
+                    self.downgraded_mapsampler_freq[det] = hp.alm2map(
+                        downgraded_alm,
+                        nside=self.nside_fsl[det],
+                        fwhm=3*hp.nside2resol(self.nside_fsl[det]),
+                        pol=False,
+                        inplace=True,
+                    )
+                else:
+                    self.downgraded_mapsampler_freq[det] = np.empty(hp.nside2npix(self.nside_fsl[det]), dtype=float)
+                self.comm.Bcast(self.downgraded_mapsampler_freq[det], root=0)
+                # self.downgraded_mapsampler_freq[det] = hp.ud_grade(
+                #     self.mapsampler_freq.Map[:],
+                #     self.nside_fsl[det],
+                #     order_in=self.mapsampler_freq.order,
+                #     order_out="RING",
+                # )
+            if self.rank == 0:
+                del mapfreq_ring, downgraded_alm        
         """
         Smoothing the polarization template may compromise single detector maps
         if self.pol_fwhm:
