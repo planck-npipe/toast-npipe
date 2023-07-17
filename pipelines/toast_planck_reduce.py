@@ -2385,7 +2385,6 @@ def main():
             fslbeam_mask_path,
         )
         del cmb
-        sys.exit(0)
         purge_caches(data, mcmode, mpiworld)
         run_madam(args, madampars, detweights, data, outdir, mcmode, mpiworld)
         if mpiworld is not None:

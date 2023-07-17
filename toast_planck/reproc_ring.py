@@ -409,6 +409,7 @@ class OpReprocRing(toast.Operator):
         self.fslbeam_mask = None
         self.nside_fsl = None
         self.fsl_pixels = None
+        self.nside_lowres_sky = None
         self.asymmetric_fsl = asymmetric_fsl
         self.pscorrect = pscorrect
         self.psradius = psradius
@@ -442,7 +443,7 @@ class OpReprocRing(toast.Operator):
         self.mapsampler_freq = None
         self.downgraded_mapsampler_freq = None
         self.mapsamplers = {}
-        self.freq_symmetric = ["pol0", "pol1", "pol2", "dipo_foreground"]
+        self.freq_symmetric = ["pol2", "dipo_foreground"]
         if not self.independent_zodi:
             self.freq_symmetric += [
                 "zodi band1",
@@ -1560,6 +1561,7 @@ class OpReprocRing(toast.Operator):
                     ring.pixels,
                     glob2loc,
                 )
+                ring_fsl -= np.mean(ring_fsl)
                 # DEBUG begin
                 if np.any(np.isnan(ring_fsl)):
                     import pdb
@@ -1585,7 +1587,8 @@ class OpReprocRing(toast.Operator):
         if self.fslbeam_mask_path is not None:
             ## Compute detector quaternions
             nbin = ring_theta.shape[0]
-            psi = ring_psi - np.radians((self.rimo[det].psi_pol + self.rimo[det].psi_uv))
+            # We add 180 deg to psi here as the beams seem to be rotated by that amount from the fits
+            psi = ring_psi - np.radians((self.rimo[det].psi_pol + self.rimo[det].psi_uv)) + np.radians(180)
             det_quat = np.zeros((nbin, 4))
             # ZYZ conversion from
             # http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770024290.pdf
@@ -1610,8 +1613,8 @@ class OpReprocRing(toast.Operator):
                 )
                 full_quat = qa.mult(det_quat, sidelobe_quat)
                 vec_sl = qa.rotate(full_quat, ZAXIS).T
-                pix_sl = hp.vec2pix(self.nside_fsl[det], *vec_sl, nest=False)
-                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl]
+                pix_sl = hp.vec2pix(self.nside_lowres_sky[det], *vec_sl, nest=False)
+                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl].astype(np.float32, copy=False)
                 ring_fsl -= np.mean(ring_fsl)
                 templates[iring][det][fslname] = RingTemplate(ring_fsl, 0)
                 if fslname not in namplitude:
@@ -2017,6 +2020,7 @@ class OpReprocRing(toast.Operator):
             if self.fslbeam_mask is None:
                 self.fslbeam_mask = {}
                 self.nside_fsl = {}
+                self.nside_lowres_sky = {}
                 self.fsl_pixels = {}
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
@@ -2033,6 +2037,9 @@ class OpReprocRing(toast.Operator):
                         self.fslbeam_mask_path[det], nest=False
                     ) != 0
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
+                    # We set a sky nside that can support a FWHM smoothing 
+                    # which has the same mean pixel separation of the FSL mask
+                    self.nside_lowres_sky[det] = 4*self.nside_fsl[det]
                     self.fsl_pixels[det] = np.arange(
                         12 * self.nside_fsl[det]**2
                     )[self.fslbeam_mask[det]]
@@ -2042,27 +2049,25 @@ class OpReprocRing(toast.Operator):
                     if self.rank == 0:
                         downgraded_alm = hp.map2alm(
                             mapfreq_ring,
-                            lmax=3*self.nside_fsl[det]-1,
+                            lmax=3*self.nside_lowres_sky[det]-1,
                             pol=False,
                         )
                         self.downgraded_mapsampler_freq[det] = hp.alm2map(
                             downgraded_alm,
-                            nside=self.nside_fsl[det],
-                            fwhm=3*hp.nside2resol(self.nside_fsl[det]),
+                            nside=self.nside_lowres_sky[det],
+                            fwhm=hp.nside2resol(self.nside_fsl[det]),
                             pol=False,
                             inplace=True,
-                        )
+                        ).astype(np.float32, copy=False)
                     else:
-                        self.downgraded_mapsampler_freq[det] = np.empty(hp.nside2npix(self.nside_fsl[det]), dtype=float)
+                        self.downgraded_mapsampler_freq[det] = np.empty(hp.nside2npix(self.nside_lowres_sky[det]), dtype=np.float32)
                     self.comm.Bcast(self.downgraded_mapsampler_freq[det], root=0)
-                    # self.downgraded_mapsampler_freq[det] = hp.ud_grade(
-                    #     self.mapsampler_freq.Map[:],
-                    #     self.nside_fsl[det],
-                    #     order_in=self.mapsampler_freq.order,
-                    #     order_out="RING",
-                    # )
+
                 if self.rank == 0:
                     del mapfreq_ring, downgraded_alm
+        
+        memreport("after pixelized FSL template set-up", self.comm)
+
         self.local_dipo_amp = np.zeros(self.nring)
         self.local_calib_rms = np.zeros(self.nring)
 
@@ -4724,7 +4729,7 @@ class OpReprocRing(toast.Operator):
         )
         self.mapsampler_freq_has_dipole = True
         del full_map
-
+        
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
             if self.rank == 0:
@@ -4736,27 +4741,22 @@ class OpReprocRing(toast.Operator):
                 if self.rank == 0:
                     downgraded_alm = hp.map2alm(
                         mapfreq_ring,
-                        lmax=3*self.nside_fsl[det]-1,
+                        lmax=3*self.nside_lowres_sky[det]-1,
                         pol=False,
                     )
                     self.downgraded_mapsampler_freq[det] = hp.alm2map(
                         downgraded_alm,
-                        nside=self.nside_fsl[det],
-                        fwhm=3*hp.nside2resol(self.nside_fsl[det]),
+                        nside=self.nside_lowres_sky[det],
+                        fwhm=hp.nside2resol(self.nside_fsl[det]),
                         pol=False,
                         inplace=True,
-                    )
-                else:
-                    self.downgraded_mapsampler_freq[det] = np.empty(hp.nside2npix(self.nside_fsl[det]), dtype=float)
+                    ).astype(np.float32, copy=False)
+
                 self.comm.Bcast(self.downgraded_mapsampler_freq[det], root=0)
-                # self.downgraded_mapsampler_freq[det] = hp.ud_grade(
-                #     self.mapsampler_freq.Map[:],
-                #     self.nside_fsl[det],
-                #     order_in=self.mapsampler_freq.order,
-                #     order_out="RING",
-                # )
+
             if self.rank == 0:
-                del mapfreq_ring, downgraded_alm        
+                del mapfreq_ring, downgraded_alm
+                
         """
         Smoothing the polarization template may compromise single detector maps
         if self.pol_fwhm:
@@ -5417,7 +5417,8 @@ class OpReprocRing(toast.Operator):
         if self.cache.exists("mask_bp"):
             self.cache.destroy("mask_bp")
         self.cache.clear("orbital_dipole.*")
-
+        
+        self.comm.Abort()
         self.write_tod()
 
         memreport("after write_tod", self.comm)
