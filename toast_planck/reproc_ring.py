@@ -1735,6 +1735,18 @@ class OpReprocRing(toast.Operator):
                     ring.pixels,
                     glob2loc,
                 )
+                # Compute the derivates (with respect to psi) for polarization angles correction
+                fg_toi_deriv = (
+                    - 2 * iquweights[:, 2] * mapsampler.Map_Q[pix]
+                    + 2 * iquweights[:, 1] * mapsampler.Map_U[pix]
+                )
+                fg_toi_deriv = bin_ring_extra(
+                    pixels // self.ndegrade,
+                    fg_toi_deriv.astype(np.float64),
+                    pntflags | detflags,
+                    ring.pixels,
+                    glob2loc,
+                )
             else:
                 fg_toi = mapsampler.atpol(
                     ring_theta,
@@ -1745,10 +1757,25 @@ class OpReprocRing(toast.Operator):
                     pol=True,
                     onlypol=True,
                 ).astype(np.float64)
+                # Compute the derivates (with respect to psi) for polarization angles correction
+                fg_toi_deriv = mapsampler.atpol(
+                    ring_theta,
+                    ring_phi,
+                    ring.weights,
+                    interp_pix=ipix,
+                    interp_weights=iweights,
+                    pol=True,
+                    onlypol=True,
+                    pol_deriv=True
+                ).astype(np.float64)
             templates[iring][det][name] = RingTemplate(fg_toi, 0)
             if name not in namplitude:
                 namplitude[name] = 1
-            del fg_toi
+            name_deriv = name + "_deriv"
+            templates[iring][det][name_deriv] = RingTemplate(fg_toi_deriv, 0)
+            if name_deriv not in namplitude:
+                namplitude[name_deriv] = 1
+            del fg_toi, fg_toi_deriv
         return
 
     @function_timer
@@ -2720,7 +2747,7 @@ class OpReprocRing(toast.Operator):
             # polarization templates already have the correct amplitudes
             if self.rank == 0:
                 print("        Subtracting polarization prior", flush=True)
-            for name in ["pol0", "pol1", "pol2"]:
+            for name in ["pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                 for iring in rings.keys():
                     for idet, det in enumerate(self.dets):
                         if det in templates[iring] and name in templates[iring][det]:
@@ -2730,7 +2757,7 @@ class OpReprocRing(toast.Operator):
         if not (self.temperature_only or self.temperature_only_destripe) \
            or self.force_polmaps:
             # Disable fitting the polarization templates
-            for name in ["pol0", "pol1", "pol2"]:
+            for name in ["pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                 for iring in rings.keys():
                     for idet, det in enumerate(self.dets):
                         if det in templates[iring] and name in templates[iring][det]:
@@ -2893,6 +2920,9 @@ class OpReprocRing(toast.Operator):
                     "pol0",
                     "pol1",
                     "pol2",
+                    "pol0_deriv",
+                    "pol1_deriv",
+                    "pol2_deriv",
                     "nlgain",
                 ]
                 if self.fslnames is not None:
@@ -3749,6 +3779,13 @@ class OpReprocRing(toast.Operator):
                         continue
                     amp = self.get_amp(det, offset, baselines, name)
                     self.pol_amplitudes[det][name] = amp
+                    # Record best fit amplitudes of polarization angle corrections
+                    name_deriv = name + "_deriv"
+                    offset_deriv = templates[iring][det][name_deriv].offset
+                    if offset_deriv is None:
+                        continue
+                    amp_deriv = self.get_amp(det, offset_deriv, baselines, name_deriv)
+                    self.pol_amplitudes[det][name_deriv] = amp_deriv
                     continue
                 if mapsampler.nside == self.bandpass_nside:
                     ipix = interp_pix
@@ -3787,6 +3824,42 @@ class OpReprocRing(toast.Operator):
                     else:
                         best_fits[name] = 0.0
                     best_fits[name] += amp * orbital_gain
+                # Handle polarization derivative in case the polarization templates are subtracted
+                if name in ["pol0", "pol1", "pol2"]:
+                    name_deriv = name + "_deriv"
+                    fg_toi_deriv = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=onlypol,
+                        pol_deriv=True,
+                    ).astype(np.float64)
+                    if not np.all(np.isfinite(fg_toi_deriv)):
+                        print(
+                            "{:4} : WARNING: non-finite value in "
+                            "fg_toi_deriv: {} {} {}".format(self.rank, det, iring, name_deriv),
+                            flush=True,
+                        )
+                    offset_deriv = templates[iring][det][name_deriv].offset
+                    if offset_deriv is None:
+                        continue
+                    if name_deriv in old_fits:
+                        old_amp_deriv = old_fits[name_deriv]
+                    else:
+                        old_amp_deriv = 0
+                    amp_deriv = self.get_amp(det, offset_deriv, baselines, name_deriv)
+                    corr_deriv = (1 - gain) * old_amp_deriv + amp_deriv
+                    signal -= corr_deriv * fg_toi_deriv
+                    if name_deriv not in best_fits:
+                        if name_deriv in old_fits:
+                            best_fits[name_deriv] = old_fits[name_deriv]
+                        else:
+                            best_fits[name_deriv] = 0.0
+                        best_fits[name_deriv] += amp_deriv * orbital_gain
+
         return
 
     @function_timer
@@ -4923,12 +4996,22 @@ class OpReprocRing(toast.Operator):
                     self.mapsamplers[name].atpol(theta, phi, iquweights, onlypol=True)
                     * amp
                 )
-                pol_signal_deriv += (
-                    self.mapsamplers[name].atpol(
-                        theta, phi, iquweights, onlypol=True, pol_deriv=True
+                name_deriv = name + "_deriv"
+                if name_deriv not in self.pol_amplitudes[det]:
+                    pol_signal_deriv += (
+                        self.mapsamplers[name].atpol(
+                            theta, phi, iquweights, onlypol=True, pol_deriv=True
+                        )
+                        * amp
                     )
-                    * amp
-                )
+                else:
+                    amp_deriv = self.pol_amplitudes[det][name_deriv]
+                    pol_signal_deriv += (
+                        self.mapsamplers[name].atpol(
+                            theta, phi, iquweights, onlypol=True, pol_deriv=True
+                        )
+                        * amp_deriv
+                    )
         else:
             pol_signal_deriv = self.mapsampler_freq.atpol(
                 theta, phi, iquweights, onlypol=True, pol_deriv=True
@@ -5341,10 +5424,10 @@ class OpReprocRing(toast.Operator):
                     for iring in rings.keys():
                         for det in self.dets:
                             if det in templates[iring]:
-                                for name in ["pol", "pol0", "pol1", "pol2"]:
+                                for name in ["pol", "pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                                     if name in templates[iring][det]:
                                         templates[iring][det][name].offset = None
-                for name in ["pol", "pol0", "pol1", "pol2"]:
+                for name in ["pol", "pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                     if name in self.template_offsets:
                         del self.template_offsets[name]
             else:
