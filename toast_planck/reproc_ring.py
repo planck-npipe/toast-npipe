@@ -5405,6 +5405,7 @@ class OpReprocRing(toast.Operator):
                 self.do_zodi = False
                 self.do_dipo = False
                 self.do_fsl = False
+                self.fslnames = None # Temporary fix: disable FSL in the last step
                 self.zodier = None
                 self.maskfile = self.maskfile_bp
                 self.compress_tod(rings, update=False)
