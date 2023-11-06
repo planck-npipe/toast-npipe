@@ -151,11 +151,29 @@ def add_sim_params(parser):
         help="Path to beam alm files. Tag DETECTOR will be "
         "replaced with detector name.",
     )
+    # Path to FSL unrolled in phase space
+    parser.add_argument(
+        "--ring_fsl",
+        required=False,
+        help="Path to directory containing FSL templates in phase space. Use ',' to list several FSL flavors",
+    )
     # FSL beam mask
     parser.add_argument(
         "--fslbeam_mask",
         required=False,
         help="Path to pixelized FSL beam mask",
+    )
+    # FSL beam
+    parser.add_argument(
+        "--fslbeam",
+        required=False,
+        help="Path to pixelized FSL beam",
+    )
+    # Output directory of the pixelized FSL timeline
+    parser.add_argument(
+        "--pixfsl_output_dir",
+        required=False,
+        help="Path to the output directory for dumping the pixelized FSL timeline"
     )
     # Bandpass for foreground
     parser.add_argument(
@@ -1015,6 +1033,13 @@ def add_reproc_params(parser):
         action="store_true",
         help="Force libmadam conserve_memory.",
     )
+    parser.add_argument(
+        "--write_pixFSL",
+        dest="write_pixFSL",
+        default=False,
+        action="store_true",
+        help="Write the unrolled pixelized FSL template (phase-binned) on disk.",
+    )
     return
 
 
@@ -1866,7 +1891,10 @@ def run_reproc(
         fg_deriv,
         cmb,
         fslnames,
+        ring_fslnames,
+        ring_fslpaths,
         fslbeam_mask_path,
+        fslbeam_path,
 ):
     """ Reprocess preprocessed or simulated signal.
 
@@ -1931,7 +1959,12 @@ def run_reproc(
         forcepol=args.reproc_forcepol,
         forcefsl=args.reproc_forcefsl,
         fslnames=fslnames,
+        ring_fslnames=ring_fslnames,
+        ring_fslpaths=ring_fslpaths,
         fslbeam_mask_path=fslbeam_mask_path,
+        fslbeam_path=fslbeam_path,
+        write_pixFSL=args.write_pixFSL,
+        pixfsl_output_dir=args.pixfsl_output_dir,
         asymmetric_fsl=args.reproc_asymmetric_fsl,
         bpcorrect=args.reproc_bpcorrect,
         pscorrect=args.reproc_pscorrect,
@@ -2341,12 +2374,32 @@ def main():
     else:
         fslnames = None
     
+    if args.ring_fsl:
+        ring_fslnames = []
+        ring_fslpaths = []
+        for ifsl, fsl in enumerate(args.ring_fsl.split(",")):
+            ring_fslname = f"ring_fsl{ifsl}"
+            ring_fslnames.append(ring_fslname)
+            ring_fslpaths.append(fsl)
+    else:
+        ring_fslnames = None
+        ring_fslpaths = None
+    
     if args.fslbeam_mask:
         fslbeam_mask_path = {}
         for det in data.obs[0]["tod"].detectors:
             fslbeam_mask_path[det] = args.fslbeam_mask.replace("DETECTOR", det)
+        
     else:
         fslbeam_mask_path = None
+
+    if args.fslbeam:
+        fslbeam_path = {}
+        for det in data.obs[0]["tod"].detectors:
+            fslbeam_path[det] = args.fslbeam.replace("DETECTOR", det)
+        
+    else:
+        fslbeam_path = None
 
     for mc in range(args.MC_start, args.MC_start + args.MC_count):
         mpiworld.Barrier()
@@ -2382,7 +2435,10 @@ def main():
             fg_deriv,
             cmb,
             fslnames,
+            ring_fslnames,
+            ring_fslpaths,
             fslbeam_mask_path,
+            fslbeam_path,
         )
         del cmb
         purge_caches(data, mcmode, mpiworld)

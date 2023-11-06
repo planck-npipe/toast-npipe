@@ -276,7 +276,12 @@ class OpReprocRing(toast.Operator):
         forcepol=False,
         forcefsl=False,
         fslnames=None,
+        ring_fslnames=None,
+        ring_fslpaths=None,
         fslbeam_mask_path=None,
+        fslbeam_path=None,
+        write_pixFSL=False,
+        pixfsl_output_dir=None,
         asymmetric_fsl=False,
         pscorrect=False,
         psradius=30,
@@ -405,11 +410,17 @@ class OpReprocRing(toast.Operator):
         self.forcepol = forcepol
         self.forcefsl = forcefsl
         self.fslnames = fslnames
+        self.ring_fslnames = ring_fslnames
+        self.ring_fslpaths = ring_fslpaths
         self.fslbeam_mask_path = fslbeam_mask_path
         self.fslbeam_mask = None
+        self.fslbeam_path = fslbeam_path
+        self.fslbeam = None
         self.nside_fsl = None
         self.fsl_pixels = None
         self.nside_lowres_sky = None
+        self.write_pixFSL = write_pixFSL
+        self.pixfsl_output_dir = pixfsl_output_dir
         self.asymmetric_fsl = asymmetric_fsl
         self.pscorrect = pscorrect
         self.psradius = psradius
@@ -1622,6 +1633,66 @@ class OpReprocRing(toast.Operator):
             del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
 
         return
+    
+    @function_timer
+    def _add_pixFSL_timeline(
+        self,
+        iring,
+        pixFSL_timeline,
+        templates,
+        ring_theta,
+        ring_phi,
+        ring_psi,
+        det,
+        namplitude,
+    ):
+        if self.write_pixFSL:
+            ## Compute detector quaternions
+            nbin = ring_theta.shape[0]
+            # We add 180 deg to psi here as the beams seem to be rotated by that amount from the fits
+            psi = ring_psi - np.radians((self.rimo[det].psi_pol + self.rimo[det].psi_uv)) + np.radians(180)
+            det_quat = np.zeros((nbin, 4))
+            # ZYZ conversion from
+            # http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770024290.pdf
+            # Note: The above document has the scalar part of the quaternion at
+            # first position but quaternionarray module has it at the end, we
+            # use the quaternionarray convention
+            # scalar part
+            det_quat[:, 3] = np.cos(0.5 * ring_theta) * np.cos(0.5 * (ring_phi + psi))
+            # vector part
+            det_quat[:, 0] = -np.sin(0.5 * ring_theta) * np.sin(0.5 * (ring_phi - psi))
+            det_quat[:, 1] = np.sin(0.5 * ring_theta) * np.cos(0.5 * (ring_phi - psi))
+            det_quat[:, 2] = np.cos(0.5 * ring_theta) * np.sin(0.5 * (ring_phi + psi))
+
+            ## Cumulate FSL timeline pixel by pixel
+            pixFSL_timeline[iring][det] = np.zeros(nbin, dtype=np.float32)
+            for fsl_pixel in self.fsl_pixels[det]:
+                dtheta_fsl, dphi_fsl = hp.pix2ang(self.nside_fsl[det], fsl_pixel, nest=False)
+                # Sidelobe pixel rotation
+                sidelobe_quat = qa.mult(
+                    qa.rotation(ZAXIS, dphi_fsl),
+                    qa.rotation(YAXIS, dtheta_fsl)
+                )
+                full_quat = qa.mult(det_quat, sidelobe_quat)
+                vec_sl = qa.rotate(full_quat, ZAXIS).T
+                pix_sl = hp.vec2pix(self.nside_lowres_sky[det], *vec_sl, nest=False)
+                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl].astype(np.float32, copy=False)
+                ring_fsl -= np.mean(ring_fsl)
+                ring_fsl *= self.fslbeam[det][fsl_pixel]
+                pixFSL_timeline[iring][det] += ring_fsl
+            del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
+        
+        if self.ring_fslnames is not None:
+            for ring_fslname, ring_fslpath in zip(self.ring_fslnames, self.ring_fslpaths):
+                ring_index = iring + self.ring_offset
+                fsl_path = os.path.join(ring_fslpath,"ring_fsl_{}_{}.pck".format(ring_index, det))
+                with open(fsl_path,"rb") as handle:
+                    ring_fsl = pickle.load(handle)
+                templates[iring][det][ring_fslname] = RingTemplate(ring_fsl, 0)
+                if ring_fslname not in namplitude:
+                    namplitude[ring_fslname] = 1
+                del ring_fsl
+        return            
 
     @function_timer
     def _add_bandpass_templates(
@@ -2049,6 +2120,8 @@ class OpReprocRing(toast.Operator):
                 self.nside_fsl = {}
                 self.nside_lowres_sky = {}
                 self.fsl_pixels = {}
+                if self.fslbeam is None:
+                    self.fslbeam = {}
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
                 
@@ -2063,6 +2136,10 @@ class OpReprocRing(toast.Operator):
                     self.fslbeam_mask[det] = hp.read_map(
                         self.fslbeam_mask_path[det], nest=False
                     ) != 0
+                    if self.fslbeam_path is not None:
+                        self.fslbeam[det] = hp.read_map(
+                            self.fslbeam_path[det], nest=False
+                        )
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
                     # We set a sky nside that can support a FWHM smoothing 
                     # which has the same mean pixel separation of the FSL mask
@@ -2102,6 +2179,15 @@ class OpReprocRing(toast.Operator):
         templates = OrderedDict()
         ngood_ring = 0
 
+        pixFSL_timeline = None
+        
+        if self.write_pixFSL:
+            pixFSL_timeline = {}
+            pixfsl_out = os.path.join(self.out, self.pixfsl_output_dir)
+            if self.rank == 0:
+                if not os.path.exists(pixfsl_out):
+                    os.makedirs(pixfsl_out)  
+
         for iring, (istart, istop) in enumerate(
             zip(self.local_starts, self.local_stops)
         ):
@@ -2114,6 +2200,10 @@ class OpReprocRing(toast.Operator):
                 position = None
             pntflags = self.cache.reference(self.pntflags)[ind]
             phase = self.tod.local_phase()[ind]
+
+            if self.write_pixFSL:
+                pixFSL_timeline[iring] = {}
+
             for det in self.dets:
                 templates[iring][det] = OrderedDict()
                 if det not in rings[iring]:
@@ -2148,6 +2238,25 @@ class OpReprocRing(toast.Operator):
                 #         f,
                 #     )
                 # DEBUG end
+
+                self._add_pixFSL_timeline(
+                        iring,
+                        pixFSL_timeline,
+                        templates,
+                        ring_theta,
+                        ring_phi,
+                        ring_psi,
+                        det,
+                        namplitude,
+                )
+
+                if self.write_pixFSL:
+                    ring_index = iring + self.ring_offset
+                    fsl_path = os.path.join(pixfsl_out,"ring_fsl_{}_{}.pck".format(ring_index, det))
+                    print(f"[rank {self.rank}] Writing {fsl_path} ...")
+                    with open(fsl_path, 'wb') as handle:
+                        pickle.dump(pixFSL_timeline[iring][det], handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    continue
 
                 ring_interp_pix, ring_interp_weights = hp.get_interp_weights(
                     self.bandpass_nside, ring_theta, ring_phi, nest=True
@@ -2303,6 +2412,11 @@ class OpReprocRing(toast.Operator):
                     det,
                     namplitude,
                 )
+        
+        if self.write_pixFSL:
+            # Abort code if running in dump FSL mode
+            self.comm.Barrier()
+            self.comm.Abort()
 
         if self.cmb_mc:
             # Remove CMB from the foreground mapsampler to prepare for
@@ -2927,6 +3041,8 @@ class OpReprocRing(toast.Operator):
                 ]
                 if self.fslnames is not None:
                     names += self.fslnames
+                if self.ring_fslnames is not None:
+                    names += self.ring_fslnames
                 for name in names:
                     if name not in self.template_offsets:
                         continue
@@ -3503,7 +3619,7 @@ class OpReprocRing(toast.Operator):
         best_fits,
         orbital_gain,
         phase,
-        ring
+        ring,
     ):
         if self.fslbeam_mask_path is not None:
             for fsl_pixel in self.fsl_pixels[det]:
@@ -3526,6 +3642,43 @@ class OpReprocRing(toast.Operator):
                         best_fits[fslname] = 0.0
                     best_fits[fslname] += amp * orbital_gain
         return
+    
+    @function_timer
+    def _subtract_pixFSL_timeline(
+        self,
+        det,
+        iring,
+        old_fits,
+        templates,
+        baselines,
+        gain,
+        signal,
+        best_fits,
+        orbital_gain,
+        phase,
+        ring,
+    ):
+        if self.ring_fslnames is not None:
+            for ring_fslname in self.ring_fslnames:
+                if ring_fslname in old_fits:
+                    old_amp = old_fits[ring_fslname]
+                else:
+                    old_amp = 0
+                offset = templates[iring][det][ring_fslname].offset
+                amp = self.get_amp(det, offset, baselines, ring_fslname)
+                fsltemplate = self._interpolate_ring_template(
+                    ring, templates[iring][det][ring_fslname].template.astype(np.float64), phase
+                )
+                corr = (1 - gain) * old_amp + amp
+                signal -= corr * fsltemplate
+                if ring_fslname not in best_fits:
+                    if ring_fslname in old_fits:
+                        best_fits[ring_fslname] = old_fits[ring_fslname]
+                    else:
+                        best_fits[ring_fslname] = 0.0
+                    best_fits[ring_fslname] += amp * orbital_gain
+        return
+
 
     @function_timer
     def _interpolate_ring_template(self, ring, template, phase):
@@ -4050,6 +4203,20 @@ class OpReprocRing(toast.Operator):
                 )
 
                 self._subtract_pixelized_fsl(
+                    det,
+                    iring,
+                    old_fits,
+                    templates,
+                    baselines,
+                    gain,
+                    signal,
+                    best_fits,
+                    orbital_gain,
+                    phase,
+                    rings[iring][det],
+                )
+
+                self._subtract_pixFSL_timeline(
                     det,
                     iring,
                     old_fits,
@@ -5406,6 +5573,7 @@ class OpReprocRing(toast.Operator):
                 self.do_dipo = False
                 self.do_fsl = False
                 self.fslnames = None # Temporary fix: disable FSL in the last step
+                self.ring_fslnames = None
                 self.zodier = None
                 self.maskfile = self.maskfile_bp
                 self.compress_tod(rings, update=False)
