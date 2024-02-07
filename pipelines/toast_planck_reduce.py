@@ -2151,16 +2151,27 @@ def check_files(data, args, mc):
 
 
 def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
-    if not args.cmb_alm:
-        return None
     if data.comm.comm_world.rank == 0:
         print("Simulating signal ...", flush=True)
     memreport("Before signalsim", mpiworld)
     fwhm = tp.utilities.freq_to_fwhm(args.freq)
 
-    almfile = args.cmb_alm.format(mc)
-    if data.comm.comm_world.rank == 0:
-        print("Simulating CMB from {}".format(almfile), flush=True)
+    # Optionally run a CMB simulation
+    if args.cmb_alm:
+        almfile = args.cmb_alm.format(mc)
+        if data.comm.comm_world.rank == 0:
+            print("Simulating CMB from {}".format(almfile), flush=True)
+        if args.conviqt_beamfile and not args.tfmode:
+            run_conviqt(args, data, almfile, args.conviqt_beamfile, rimo, mpiworld)
+            almfile = None
+            add = True
+        else:
+            add = False
+    else:
+        almfile = None
+        add = False
+
+    # Draw center frequencies
     if args.freq_sigma is None:
         if data.comm.comm_world.rank == 0:
             print("WARNING: not simulating bandpass mismatch", flush=True)
@@ -2190,12 +2201,6 @@ def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
             freqs[det] = freq
             if data.comm.comm_world.rank == 0:
                 print("MC {:4} Det {:8} center freq = {:10.3f}".format(mc, det, freq))
-    if args.conviqt_beamfile and not args.tfmode:
-        run_conviqt(args, data, almfile, args.conviqt_beamfile, rimo, mpiworld)
-        almfile = None
-        add = True
-    else:
-        add = False
 
     timer = Timer()
     timer.start()
@@ -2237,30 +2242,33 @@ def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
     del signalsim
     memreport("after deleting tp.OpSignalSim", mpiworld)
 
-    fn_cmb = os.path.join(
-        CMBCACHE,
-        "{}_nside{:04}_quickpol.fits".format(
-            os.path.basename(args.cmb_alm.format(mc)).replace(".fits", ""),
-            args.sim_nside,
-        ),
-    )
-    if data.comm.comm_world.rank == 0:
-        if not os.path.isfile(fn_cmb):
-            print(
-                "ERROR: Even when using Conviqt, there must also be a cached version "
-                'of the CMB map. File not found: "{}"'.format(fn_cmb),
-                flush=True,
-            )
-            data.comm.comm_world.Abort("No cached CMB map")
-        print("Loading pre-computed CMB map from {}".format(fn_cmb), flush=True)
-    cmb = MapSampler(
-        fn_cmb,
-        pol=True,
-        comm=data.comm.comm_world,
-        nest=True,
-        nside=args.reproc_nside_bandpass,
-        plug_holes=False,
-    )
+    if args.cmb_alm:
+        fn_cmb = os.path.join(
+            CMBCACHE,
+            "{}_nside{:04}_quickpol.fits".format(
+                os.path.basename(args.cmb_alm.format(mc)).replace(".fits", ""),
+                args.sim_nside,
+            ),
+        )
+        if data.comm.comm_world.rank == 0:
+            if not os.path.isfile(fn_cmb):
+                print(
+                    "ERROR: Even when using Conviqt, there must also be a cached version "
+                    'of the CMB map. File not found: "{}"'.format(fn_cmb),
+                    flush=True,
+                )
+                data.comm.comm_world.Abort("No cached CMB map")
+            print("Loading pre-computed CMB map from {}".format(fn_cmb), flush=True)
+        cmb = MapSampler(
+            fn_cmb,
+            pol=True,
+            comm=data.comm.comm_world,
+            nest=True,
+            nside=args.reproc_nside_bandpass,
+            plug_holes=False,
+        )
+    else:
+        cmb = None
 
     if args.sim_tf is not None:
         if data.comm.comm_world.rank == 0:
