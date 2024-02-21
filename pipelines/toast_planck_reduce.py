@@ -236,6 +236,13 @@ def add_sim_params(parser):
         action="store_true",
         help="Simulate and add noise to signal.",
     )
+    parser.add_argument(
+        "--simulate_signal",
+        dest="simulate_signal",
+        default=False,
+        action="store_true",
+        help="Simulate signal and overwrite data.",
+    )
     # Decalibration
     parser.add_argument(
         "--decalibrate",
@@ -2026,7 +2033,7 @@ def run_noisesim(args, data, fsample, mc, mpiworld):
         return
     timer = Timer()
     timer.start()
-    if not args.cmb_alm:
+    if not args.simulate_signal:
         # zero the local signal for noise
         for obs in data.obs:
             tod = obs["tod"]
@@ -2151,6 +2158,8 @@ def check_files(data, args, mc):
 
 
 def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
+    if not args.simulate_signal:
+        return None
     if data.comm.comm_world.rank == 0:
         print("Simulating signal ...", flush=True)
     memreport("Before signalsim", mpiworld)
@@ -2416,7 +2425,7 @@ def main():
             continue
         mctimer = Timer()
         mctimer.start()
-        if args.cmb_alm or args.simulate_noise:
+        if args.simulate_signal or args.simulate_noise:
             outdir = os.path.join(args.out, "{:04}".format(mc))
             if comm.world_rank == 0:
                 os.makedirs(outdir, exist_ok=True)
