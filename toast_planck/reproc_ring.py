@@ -4419,6 +4419,7 @@ class OpReprocRing(toast.Operator):
             pars["isubchunk"] = 0
             if self.temperature_only or self.temperature_only_intermediate:
                 mode = "I"
+                pars["temperature_only"] = True
                 pars["force_pol"] = False
                 pars["write_leakmatrix"] = False
                 pars["nside_cross"] = self.nside
@@ -4939,7 +4940,14 @@ class OpReprocRing(toast.Operator):
                     fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_U[:])
                     umap += amp * buf
                 full_map = np.vstack([full_map, qmap, umap])
+                shape = full_map.shape
                 del qmap, umap, interp_pix, interp_weights, buf
+            else:
+                shape = None
+                path = None
+            shape = self.comm.bcast(shape)
+            if self.rank != 0:
+                full_map = np.zeros(shape, dtype=np.float32)
             self.comm.Bcast(full_map)
             stop1 = MPI.Wtime()
             if self.rank == 0:
