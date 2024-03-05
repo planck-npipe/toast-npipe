@@ -119,7 +119,7 @@ setup(
     name='toast_planck',
     provides='toast_planck',
     version=current_version,
-    description='Planck extensions to TOAST',
+    description='Planck extensions to TOAST-2',
     author='Brendan Crill, Sergi Hildebrandt, Eric Hivon, Reijo Keskitalo, '
     'Ted Kisner, Guillaume Patanchon, Cyrille Rosset, Gael Roudier',
     author_email='rtkeskitalo@lbl.gov',
