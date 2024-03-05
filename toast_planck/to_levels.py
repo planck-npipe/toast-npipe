@@ -29,10 +29,11 @@ class OpToLevelS(toast.Operator):
 
     Args:
         RIMO -- Reduced instrument model, used for noise and position angle
+        pxx=False -- toggle pointing reference frame between Pxx and Dxx (default)
     """
 
     def __init__(
-            self, rimo, comm, out=".", common_flag_mask=255, flag_mask=255):
+            self, rimo, comm, out=".", common_flag_mask=255, flag_mask=255, pxx=False):
         self.comm = comm
         if comm is None:
             self.rank = 0
@@ -43,6 +44,7 @@ class OpToLevelS(toast.Operator):
         self.common_flag_mask = common_flag_mask
         self.flag_mask = flag_mask
         self.masksampler = None
+        self.pxx = pxx
 
     # @profile
     def exec(self, data):
@@ -50,8 +52,13 @@ class OpToLevelS(toast.Operator):
         for det in dets:
             # We only want the position angle without the extra
             # polarization angle
-            psidet = np.radians(
-                self.rimo[det].psi_uv + self.rimo[det].psi_pol - 90)
+            if self.pxx:
+                # Detector polarization angle in the Pxx frame
+                psidet = np.radians(self.rimo[det].psi_pol - 90)
+            else:
+                # Detector polarization angle in the Dxx frame
+                psidet = np.radians(
+                    self.rimo[det].psi_uv + self.rimo[det].psi_pol - 90)
             thetavec = []
             phivec = []
             psivec = []
@@ -65,7 +72,7 @@ class OpToLevelS(toast.Operator):
                 flags |= common_flags
                 quat = tod.local_pointing(det)
                 theta, phi, psi = toast.qarray.to_angles(quat)
-                psi -= psidet  # To position angle
+                psi -= psidet  # To position angle in Pxx or Dxx frame
 
                 thetavec.append(theta)
                 phivec.append(phi)

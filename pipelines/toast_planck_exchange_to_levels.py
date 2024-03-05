@@ -181,6 +181,9 @@ def main():
     parser.add_argument('--effdir_pntg', required=False,
                         help='Input Exchange Format File directory '
                         'for pointing')
+    parser.add_argument('--pxx', dest='pxx', default=False,
+                        action='store_true',
+                        help='Write pointing angles in Pxx, not Dxx frame.')
     parser.add_argument('--coord', default='G',
                         help='Coordinate system, "G", "E" or "C"')
     parser.add_argument('--obtmask', required=False, default=1, type=int,
@@ -314,6 +317,7 @@ def main():
         common_flag_mask=args.obtmask,
         flag_mask=args.flagmask,
         out=args.out,
+        pxx=args.pxx,
     )
     to_levels.exec(data)
 
