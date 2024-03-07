@@ -151,11 +151,29 @@ def add_sim_params(parser):
         help="Path to beam alm files. Tag DETECTOR will be "
         "replaced with detector name.",
     )
+    # Path to FSL unrolled in phase space
+    parser.add_argument(
+        "--ring_fsl",
+        required=False,
+        help="Path to directory containing FSL templates in phase space. Use ',' to list several FSL flavors",
+    )
     # FSL beam mask
     parser.add_argument(
         "--fslbeam_mask",
         required=False,
         help="Path to pixelized FSL beam mask",
+    )
+    # FSL beam
+    parser.add_argument(
+        "--fslbeam",
+        required=False,
+        help="Path to pixelized FSL beam",
+    )
+    # Output directory of the pixelized FSL timeline
+    parser.add_argument(
+        "--pixfsl_output_dir",
+        required=False,
+        help="Path to the output directory for dumping the pixelized FSL timeline"
     )
     # Bandpass for foreground
     parser.add_argument(
@@ -217,6 +235,13 @@ def add_sim_params(parser):
         default=False,
         action="store_true",
         help="Simulate and add noise to signal.",
+    )
+    parser.add_argument(
+        "--simulate_signal",
+        dest="simulate_signal",
+        default=False,
+        action="store_true",
+        help="Simulate signal and overwrite data.",
     )
     # Decalibration
     parser.add_argument(
@@ -1014,6 +1039,13 @@ def add_reproc_params(parser):
         default=False,
         action="store_true",
         help="Force libmadam conserve_memory.",
+    )
+    parser.add_argument(
+        "--write_pixFSL",
+        dest="write_pixFSL",
+        default=False,
+        action="store_true",
+        help="Write the unrolled pixelized FSL template (phase-binned) on disk.",
     )
     return
 
@@ -1866,7 +1898,10 @@ def run_reproc(
         fg_deriv,
         cmb,
         fslnames,
+        ring_fslnames,
+        ring_fslpaths,
         fslbeam_mask_path,
+        fslbeam_path,
 ):
     """ Reprocess preprocessed or simulated signal.
 
@@ -1931,7 +1966,12 @@ def run_reproc(
         forcepol=args.reproc_forcepol,
         forcefsl=args.reproc_forcefsl,
         fslnames=fslnames,
+        ring_fslnames=ring_fslnames,
+        ring_fslpaths=ring_fslpaths,
         fslbeam_mask_path=fslbeam_mask_path,
+        fslbeam_path=fslbeam_path,
+        write_pixFSL=args.write_pixFSL,
+        pixfsl_output_dir=args.pixfsl_output_dir,
         asymmetric_fsl=args.reproc_asymmetric_fsl,
         bpcorrect=args.reproc_bpcorrect,
         pscorrect=args.reproc_pscorrect,
@@ -1993,7 +2033,7 @@ def run_noisesim(args, data, fsample, mc, mpiworld):
         return
     timer = Timer()
     timer.start()
-    if not args.cmb_alm:
+    if not args.simulate_signal:
         # zero the local signal for noise
         for obs in data.obs:
             tod = obs["tod"]
@@ -2118,16 +2158,29 @@ def check_files(data, args, mc):
 
 
 def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
-    if not args.cmb_alm:
+    if not args.simulate_signal:
         return None
     if data.comm.comm_world.rank == 0:
         print("Simulating signal ...", flush=True)
     memreport("Before signalsim", mpiworld)
     fwhm = tp.utilities.freq_to_fwhm(args.freq)
 
-    almfile = args.cmb_alm.format(mc)
-    if data.comm.comm_world.rank == 0:
-        print("Simulating CMB from {}".format(almfile), flush=True)
+    # Optionally run a CMB simulation
+    if args.cmb_alm:
+        almfile = args.cmb_alm.format(mc)
+        if data.comm.comm_world.rank == 0:
+            print("Simulating CMB from {}".format(almfile), flush=True)
+        if args.conviqt_beamfile and not args.tfmode:
+            run_conviqt(args, data, almfile, args.conviqt_beamfile, rimo, mpiworld)
+            almfile = None
+            add = True
+        else:
+            add = False
+    else:
+        almfile = None
+        add = False
+
+    # Draw center frequencies
     if args.freq_sigma is None:
         if data.comm.comm_world.rank == 0:
             print("WARNING: not simulating bandpass mismatch", flush=True)
@@ -2157,12 +2210,6 @@ def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
             freqs[det] = freq
             if data.comm.comm_world.rank == 0:
                 print("MC {:4} Det {:8} center freq = {:10.3f}".format(mc, det, freq))
-    if args.conviqt_beamfile and not args.tfmode:
-        run_conviqt(args, data, almfile, args.conviqt_beamfile, rimo, mpiworld)
-        almfile = None
-        add = True
-    else:
-        add = False
 
     timer = Timer()
     timer.start()
@@ -2204,30 +2251,33 @@ def run_signalsim(args, data, mc, outdir, rimo, mpiworld):
     del signalsim
     memreport("after deleting tp.OpSignalSim", mpiworld)
 
-    fn_cmb = os.path.join(
-        CMBCACHE,
-        "{}_nside{:04}_quickpol.fits".format(
-            os.path.basename(args.cmb_alm.format(mc)).replace(".fits", ""),
-            args.sim_nside,
-        ),
-    )
-    if data.comm.comm_world.rank == 0:
-        if not os.path.isfile(fn_cmb):
-            print(
-                "ERROR: Even when using Conviqt, there must also be a cached version "
-                'of the CMB map. File not found: "{}"'.format(fn_cmb),
-                flush=True,
-            )
-            data.comm.comm_world.Abort("No cached CMB map")
-        print("Loading pre-computed CMB map from {}".format(fn_cmb), flush=True)
-    cmb = MapSampler(
-        fn_cmb,
-        pol=True,
-        comm=data.comm.comm_world,
-        nest=True,
-        nside=args.reproc_nside_bandpass,
-        plug_holes=False,
-    )
+    if args.cmb_alm:
+        fn_cmb = os.path.join(
+            CMBCACHE,
+            "{}_nside{:04}_quickpol.fits".format(
+                os.path.basename(args.cmb_alm.format(mc)).replace(".fits", ""),
+                args.sim_nside,
+            ),
+        )
+        if data.comm.comm_world.rank == 0:
+            if not os.path.isfile(fn_cmb):
+                print(
+                    "ERROR: Even when using Conviqt, there must also be a cached version "
+                    'of the CMB map. File not found: "{}"'.format(fn_cmb),
+                    flush=True,
+                )
+                data.comm.comm_world.Abort("No cached CMB map")
+            print("Loading pre-computed CMB map from {}".format(fn_cmb), flush=True)
+        cmb = MapSampler(
+            fn_cmb,
+            pol=True,
+            comm=data.comm.comm_world,
+            nest=True,
+            nside=args.reproc_nside_bandpass,
+            plug_holes=False,
+        )
+    else:
+        cmb = None
 
     if args.sim_tf is not None:
         if data.comm.comm_world.rank == 0:
@@ -2341,12 +2391,32 @@ def main():
     else:
         fslnames = None
     
+    if args.ring_fsl:
+        ring_fslnames = []
+        ring_fslpaths = []
+        for ifsl, fsl in enumerate(args.ring_fsl.split(",")):
+            ring_fslname = f"ring_fsl{ifsl}"
+            ring_fslnames.append(ring_fslname)
+            ring_fslpaths.append(fsl)
+    else:
+        ring_fslnames = None
+        ring_fslpaths = None
+    
     if args.fslbeam_mask:
         fslbeam_mask_path = {}
         for det in data.obs[0]["tod"].detectors:
             fslbeam_mask_path[det] = args.fslbeam_mask.replace("DETECTOR", det)
+        
     else:
         fslbeam_mask_path = None
+
+    if args.fslbeam:
+        fslbeam_path = {}
+        for det in data.obs[0]["tod"].detectors:
+            fslbeam_path[det] = args.fslbeam.replace("DETECTOR", det)
+        
+    else:
+        fslbeam_path = None
 
     for mc in range(args.MC_start, args.MC_start + args.MC_count):
         mpiworld.Barrier()
@@ -2355,7 +2425,7 @@ def main():
             continue
         mctimer = Timer()
         mctimer.start()
-        if args.cmb_alm or args.simulate_noise:
+        if args.simulate_signal or args.simulate_noise:
             outdir = os.path.join(args.out, "{:04}".format(mc))
             if comm.world_rank == 0:
                 os.makedirs(outdir, exist_ok=True)
@@ -2382,7 +2452,10 @@ def main():
             fg_deriv,
             cmb,
             fslnames,
+            ring_fslnames,
+            ring_fslpaths,
             fslbeam_mask_path,
+            fslbeam_path,
         )
         del cmb
         purge_caches(data, mcmode, mpiworld)
