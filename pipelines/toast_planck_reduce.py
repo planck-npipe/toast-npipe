@@ -151,6 +151,12 @@ def add_sim_params(parser):
         help="Path to beam alm files. Tag DETECTOR will be "
         "replaced with detector name.",
     )
+    # FSL beam mask
+    parser.add_argument(
+        "--fslbeam_mask",
+        required=False,
+        help="Path to pixelized FSL beam mask",
+    )
     # Bandpass for foreground
     parser.add_argument(
         "--freq_sigma",
@@ -1860,6 +1866,7 @@ def run_reproc(
         fg_deriv,
         cmb,
         fslnames,
+        fslbeam_mask_path,
 ):
     """ Reprocess preprocessed or simulated signal.
 
@@ -1924,6 +1931,7 @@ def run_reproc(
         forcepol=args.reproc_forcepol,
         forcefsl=args.reproc_forcefsl,
         fslnames=fslnames,
+        fslbeam_mask_path=fslbeam_mask_path,
         asymmetric_fsl=args.reproc_asymmetric_fsl,
         bpcorrect=args.reproc_bpcorrect,
         pscorrect=args.reproc_pscorrect,
@@ -2332,6 +2340,13 @@ def main():
             fslnames.append(fslname)
     else:
         fslnames = None
+    
+    if args.fslbeam_mask:
+        fslbeam_mask_path = {}
+        for det in data.obs[0]["tod"].detectors:
+            fslbeam_mask_path[det] = args.fslbeam_mask.replace("DETECTOR", det)
+    else:
+        fslbeam_mask_path = None
 
     for mc in range(args.MC_start, args.MC_start + args.MC_count):
         mpiworld.Barrier()
@@ -2367,6 +2382,7 @@ def main():
             fg_deriv,
             cmb,
             fslnames,
+            fslbeam_mask_path,
         )
         del cmb
         purge_caches(data, mcmode, mpiworld)
