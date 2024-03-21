@@ -54,11 +54,12 @@ class OpToLevelS(toast.Operator):
             # polarization angle
             if self.pxx:
                 # Detector polarization angle in the Pxx frame
-                psidet = np.radians(self.rimo[det].psi_pol - 90)
+                psidet = np.radians(self.rimo[det].psi_pol)
             else:
                 # Detector polarization angle in the Dxx frame
                 psidet = np.radians(
-                    self.rimo[det].psi_uv + self.rimo[det].psi_pol - 90)
+                    self.rimo[det].psi_uv + self.rimo[det].psi_pol
+                )
             thetavec = []
             phivec = []
             psivec = []
@@ -93,7 +94,6 @@ class OpToLevelS(toast.Operator):
             thetavec = np.hstack(thetavec)[good]
             phivec = np.hstack(phivec)[good]
             psivec = np.hstack(psivec)[good]
-
 
             cols = []
             nwrite = len(signalvec)
