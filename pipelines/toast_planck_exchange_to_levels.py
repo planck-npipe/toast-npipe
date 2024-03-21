@@ -188,7 +188,7 @@ def main():
                         help='Coordinate system, "G", "E" or "C"')
     parser.add_argument('--obtmask', required=False, default=1, type=int,
                         help='OBT flag mask')
-    parser.add_argument('--flagmask', required=False, default=2, type=int,
+    parser.add_argument('--flagmask', required=False, default=3, type=int,
                         help='Quality flag mask')
     parser.add_argument('--pntflagmask', required=False, default=0, type=int,
                         help='Pointing flag mask')
