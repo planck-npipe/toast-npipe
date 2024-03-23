@@ -4419,7 +4419,7 @@ class OpReprocRing(toast.Operator):
             pars["isubchunk"] = 0
             if self.temperature_only or self.temperature_only_intermediate:
                 mode = "I"
-                pars["temperature_only"] = True
+                # pars["temperature_only"] = True
                 pars["force_pol"] = False
                 pars["write_leakmatrix"] = False
                 pars["nside_cross"] = self.nside
@@ -5433,7 +5433,7 @@ class OpReprocRing(toast.Operator):
         if self.rank == 0:
             print("    Writing TOD", flush=True)
 
-        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME))
+        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME)) # No FSL tod cache to clear for 857 processing 
 
         if self.effdir_out is None:
             return
@@ -5678,9 +5678,10 @@ class OpReprocRing(toast.Operator):
             self.cache.destroy("mask_bp")
         self.cache.clear("orbital_dipole.*")
         
-        self.comm.Abort()
         self.write_tod()
 
         memreport("after write_tod", self.comm)
+        self.comm.Abort()
+
 
         return
