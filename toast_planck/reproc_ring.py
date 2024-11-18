@@ -2861,7 +2861,7 @@ class OpReprocRing(toast.Operator):
             # polarization templates already have the correct amplitudes
             if self.rank == 0:
                 print("        Subtracting polarization prior", flush=True)
-            for name in ["pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
+            for name in ["pol0", "pol1", "pol2"]:
                 for iring in rings.keys():
                     for idet, det in enumerate(self.dets):
                         if det in templates[iring] and name in templates[iring][det]:
@@ -4908,7 +4908,7 @@ class OpReprocRing(toast.Operator):
         if self.temperature_only_intermediate and "pol0" in self.mapsamplers:
             start1 = MPI.Wtime()
             if self.rank == 0:
-                det = self.dets[0]
+                det0 = self.dets[0]
                 print(
                     "        Adding polarization to freqmap from pol templates",
                     flush=True
@@ -4931,14 +4931,22 @@ class OpReprocRing(toast.Operator):
                 del theta, phi
                 buf = np.zeros(npix, dtype=np.float64)
                 for name in ["pol0", "pol1", "pol2"]:
-                    if name not in self.pol_amplitudes[det]:
+                    if name not in self.pol_amplitudes[det0]:
                         continue
-                    amp = self.pol_amplitudes[det][name]
+                    # Take the average amplitude of the polarization templates
+                    amp = 0
+                    for det in self.dets:
+                        amp += self.pol_amplitudes[det][name]
+                    amp /= self.ndet
+                    # amp = self.pol_amplitudes[det0][name]
+                    print(f'{name} amplitude = {amp}', flush=True)
                     # Interpolate the pol map to full resolution pixels
                     fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_Q[:])
                     qmap += amp * buf
+                    buf.fill(0)
                     fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_U[:])
                     umap += amp * buf
+                    buf.fill(0)
                 full_map = np.vstack([full_map, qmap, umap])
                 shape = full_map.shape
                 del qmap, umap, interp_pix, interp_weights, buf
@@ -5564,10 +5572,12 @@ class OpReprocRing(toast.Operator):
                 templates, namplitude = self.build_templates(rings)
             elif (
                 self.iiter == self.niter - 1
-                and self.maskfile_bp is not None
-                and self.maskfile != self.maskfile_bp
+                # These conditions are dropped to allow for special treatment of the last iteration
+                # even when the bpmask is the same as the processing mask
+                # and self.maskfile_bp is not None
+                # and self.maskfile != self.maskfile_bp
                 and self.bpcorrect
-                and not self.quss_correct
+                # and not self.quss_correct
             ):
                 # For the last iteration, build new templates with a
                 # much smaller mask and disable calibration and
