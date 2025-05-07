@@ -251,6 +251,10 @@ class OpReprocRing(toast.Operator):
         co=None,
         co2=None,
         co3=None,
+        bpm1=None,
+        bpm2=None,
+        bpm3=None,
+        bpm4=None,
         dust=None,
         dust_pol=None,
         sync=None,
@@ -287,6 +291,7 @@ class OpReprocRing(toast.Operator):
         psradius=30,
         bpcorrect=False,
         bpcorrect2=False,
+        bpfull=False,
         fgdipole=False,
         madampars=None,
         bad_rings=None,
@@ -376,6 +381,10 @@ class OpReprocRing(toast.Operator):
         self.co1 = co
         self.co2 = co2
         self.co3 = co3
+        self.bpm1 = bpm1
+        self.bpm2 = bpm2
+        self.bpm3 = bpm3
+        self.bpm4 = bpm4
         self.dust = dust
         self.dust_pol = dust_pol
         self.sync = sync
@@ -426,6 +435,7 @@ class OpReprocRing(toast.Operator):
         self.psradius = psradius
         self.bpcorrect = bpcorrect or quss_correct
         self.bpcorrect2 = bpcorrect2
+        self.bpfull = bpfull
         # Monte Carlo mode does not support bpcorrect2
         if self.bpcorrect2 and self.fg_deriv is not None:
             self.bpcorrect2 = False
@@ -1363,6 +1373,36 @@ class OpReprocRing(toast.Operator):
                 flush=True,
             )
         return mapsampler_fg
+    
+    @function_timer
+    def _set_up_full_bpm_template(self):
+        start = MPI.Wtime()
+        if self.bpfull:
+            for name, path in [("BPM1", self.bpm1), ("BPM2", self.bpm2), ("BPM3", self.bpm3), ("BPM4", self.bpm4)]:
+                if name in self.mapsamplers:
+                    # We already loaded this map in a previous iteration
+                    continue
+                if path is not None:
+                    if path in cached_mapsamplers:
+                        self.mapsamplers[name] = cached_mapsamplers[path]
+                    else:
+                        self.mapsamplers[name] = MapSampler(
+                            path,
+                            pol=False,
+                            nside=self.bandpass_nside,
+                            comm=self.comm,
+                            cache=self.cache,
+                            nest=True,
+                        )
+                        if self.mcmode:
+                            cached_mapsamplers[path] = self.mapsamplers[name]
+        stop = MPI.Wtime()
+        if self.rank == 0:
+            print(
+                "       Full bandpass mismatch model initialized in {:.2f} s" "".format(stop - start),
+                flush=True,
+            )
+        return
 
     @function_timer
     def _set_up_polarization(self, mapsampler_fg):
@@ -1684,7 +1724,8 @@ class OpReprocRing(toast.Operator):
         
         if self.ring_fslnames is not None:
             for ring_fslname, ring_fslpath in zip(self.ring_fslnames, self.ring_fslpaths):
-                ring_index = iring + self.ring_offset
+                # self.ring_numbers == absolute ring numbers
+                ring_index = self.ring_numbers[iring] #iring + self.ring_offset #+ 12957 (half2 jackknife)
                 fsl_path = os.path.join(ring_fslpath,"ring_fsl_{}_{}.pck".format(ring_index, det))
                 with open(fsl_path,"rb") as handle:
                     ring_fsl = pickle.load(handle)
@@ -1746,15 +1787,25 @@ class OpReprocRing(toast.Operator):
                 # FIXME: just like above, polarization in this branch should be
                 # conditional:
                 #    pol = not (self.temperature_only or self.temperature_only_destripe)
-                fg_toi = mapsampler.atpol(
-                    ring_theta,
-                    ring_phi,
-                    ring.weights,
-                    interp_pix=ipix,
-                    interp_weights=iweights,
-                    pol=True,
-                    onlypol=False,
-                ).astype(np.float64)
+                if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                    fg_toi = mapsampler.atpol(
+                        ring_theta,
+                        ring_phi,
+                        ring.weights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=False,
+                    ).astype(np.float64)
+                else:
+                    fg_toi = mapsampler.atpol(
+                        ring_theta,
+                        ring_phi,
+                        ring.weights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=False,
+                    ).astype(np.float64)
             if fg_toi is None:
                 continue
             templates[iring][det][name] = RingTemplate(fg_toi, 0)
@@ -1762,6 +1813,8 @@ class OpReprocRing(toast.Operator):
                 namplitude[name] = 1
             del fg_toi
         return
+
+    
 
     @function_timer
     def _add_polarization_templates(
@@ -2100,6 +2153,7 @@ class OpReprocRing(toast.Operator):
 
         self._set_up_zodi()
         mapsampler_fg = self._set_up_foreground()
+        self._set_up_full_bpm_template()
         self._set_up_polarization(mapsampler_fg)
         self._set_up_cmb(mapsampler_fg)
         self._save_fgmap(mapsampler_fg)
@@ -2251,7 +2305,9 @@ class OpReprocRing(toast.Operator):
                 )
 
                 if self.write_pixFSL:
-                    ring_index = iring + self.ring_offset
+                    # iring is local index, ring_offset is the offset relative to the first ring in the first process
+                    # self.ring_numbers == absolute ring numbers
+                    ring_index = self.ring_numbers[iring] #iring + self.ring_offset 
                     fsl_path = os.path.join(pixfsl_out,"ring_fsl_{}_{}.pck".format(ring_index, det))
                     print(f"[rank {self.rank}] Writing {fsl_path} ...")
                     with open(fsl_path, 'wb') as handle:
@@ -2892,6 +2948,10 @@ class OpReprocRing(toast.Operator):
             "CO",
             "CO2",
             "CO3",
+            "BPM1",
+            "BPM2",
+            "BPM3",
+            "BPM4",
             "distortion",
         ]
         """
@@ -3038,6 +3098,10 @@ class OpReprocRing(toast.Operator):
                     "pol1_deriv",
                     "pol2_deriv",
                     "nlgain",
+                    "BPM1",
+                    "BPM2",
+                    "BPM3",
+                    "BPM4",
                 ]
                 if self.fslnames is not None:
                     names += self.fslnames
@@ -3946,15 +4010,25 @@ class OpReprocRing(toast.Operator):
                 else:
                     ipix = None
                     iweights = None
-                fg_toi = mapsampler.atpol(
-                    theta,
-                    phi,
-                    iquweights,
-                    interp_pix=ipix,
-                    interp_weights=iweights,
-                    pol=True,
-                    onlypol=onlypol,
-                ).astype(np.float64)
+                if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                    fg_toi = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=False,
+                    ).astype(np.float64)
+                else:
+                    fg_toi = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=onlypol,
+                    ).astype(np.float64)
                 if not np.all(np.isfinite(fg_toi)):
                     print(
                         "{:4} : WARNING: non-finite value in "
@@ -5249,13 +5323,23 @@ class OpReprocRing(toast.Operator):
                     else:
                         ipix = None
                         iweights = None
-                    fg_toi = mapsampler.atpol(
-                        theta[ind],
-                        phi[ind],
-                        iquweights[ind],
-                        interp_pix=ipix,
-                        interp_weights=iweights,
-                    ).astype(np.float64)
+                    if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                        fg_toi = mapsampler.atpol(
+                            theta[ind],
+                            phi[ind],
+                            iquweights[ind],
+                            interp_pix=ipix,
+                            interp_weights=iweights,
+                            pol=False,
+                        ).astype(np.float64)
+                    else:
+                        fg_toi = mapsampler.atpol(
+                            theta[ind],
+                            phi[ind],
+                            iquweights[ind],
+                            interp_pix=ipix,
+                            interp_weights=iweights,
+                        ).astype(np.float64)
                     amp = self.best_fit_amplitudes[det][name]
                     bp_template[ind] += amp * fg_toi
                     del fg_toi

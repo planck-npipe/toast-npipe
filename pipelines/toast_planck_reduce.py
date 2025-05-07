@@ -814,6 +814,26 @@ def add_reproc_params(parser):
         help="Third CO map file for bandpass correction.",
     )
     parser.add_argument(
+        "--reproc_BPM1",
+        required=False,
+        help="Bandpass mismatch map file for bandpass correction.",
+    )
+    parser.add_argument(
+        "--reproc_BPM2",
+        required=False,
+        help="Second bandpass mismatch map file for bandpass correction.",
+    )
+    parser.add_argument(
+        "--reproc_BPM3",
+        required=False,
+        help="Third bandpass mismatch map file for bandpass correction.",
+    )
+    parser.add_argument(
+        "--reproc_BPM4",
+        required=False,
+        help="Fourth bandpass mismatch map file for bandpass correction.",
+    )
+    parser.add_argument(
         "--reproc_dust", required=False, help="Dust map file for bandpass correction."
     )
     parser.add_argument(
@@ -1018,6 +1038,13 @@ def add_reproc_params(parser):
         default=False,
         action="store_true",
         help="Apply templated bandpass correction in reproc",
+    )
+    parser.add_argument(
+        "--reproc_bpfull",
+        dest="reproc_bpfull",
+        default=False,
+        action="store_true",
+        help="Apply HFI bandpass integrated correction templates in reproc",
     )
     parser.add_argument(
         "--reproc_pscorrect",
@@ -1933,6 +1960,10 @@ def run_reproc(
         co=args.reproc_CO,
         co2=args.reproc_CO2,
         co3=args.reproc_CO3,
+        bpm1=args.reproc_BPM1,
+        bpm2=args.reproc_BPM2,
+        bpm3=args.reproc_BPM3,
+        bpm4=args.reproc_BPM4,
         dust=args.reproc_dust,
         dust_pol=args.reproc_dust_pol,
         sync=args.reproc_sync,
@@ -1974,6 +2005,7 @@ def run_reproc(
         pixfsl_output_dir=args.pixfsl_output_dir,
         asymmetric_fsl=args.reproc_asymmetric_fsl,
         bpcorrect=args.reproc_bpcorrect,
+        bpfull = args.reproc_bpfull,
         pscorrect=args.reproc_pscorrect,
         psradius=args.reproc_psradius,
         do_fsl=(args.effdir_fsl is not None),
