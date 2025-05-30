@@ -1727,8 +1727,13 @@ class OpReprocRing(toast.Operator):
                 # self.ring_numbers == absolute ring numbers
                 ring_index = self.ring_numbers[iring] #iring + self.ring_offset #+ 12957 (half2 jackknife)
                 fsl_path = os.path.join(ring_fslpath,"ring_fsl_{}_{}.pck".format(ring_index, det))
-                with open(fsl_path,"rb") as handle:
-                    ring_fsl = pickle.load(handle)
+                try:
+                    with open(fsl_path,"rb") as handle:
+                        ring_fsl = pickle.load(handle)
+                except FileNotFoundError:
+                    print("WARNING: FSL ring {} for detector {} not found at {}".format(ring_index, det, fsl_path))
+                    # TO DO: Flag this ring for this detector
+                    continue
                 templates[iring][det][ring_fslname] = RingTemplate(ring_fsl, 0)
                 if ring_fslname not in namplitude:
                     namplitude[ring_fslname] = 1
@@ -4535,7 +4540,7 @@ class OpReprocRing(toast.Operator):
             pars["write_binmap"] = False
             pars["write_wcov"] = not self.mcmode
             pars["write_matrix"] = not self.mcmode
-            pars["write_hits"] = not self.mcmode
+            pars["write_hits"] = True#not self.mcmode
             if self.mcmode:
                 # In MC mode, skip over previously written half ring maps
                 nsub = int(pars["nsubchunk"])
@@ -5173,7 +5178,7 @@ class OpReprocRing(toast.Operator):
         pars["kfirst"] = True
         pars["write_map"] = True
         pars["bin_subsets"] = self.save_survey_maps and not self.mcmode
-        pars["write_hits"] = not self.mcmode
+        pars["write_hits"] = True#not self.mcmode
         pars["info"] = 2
 
         madam = OpMadam(
@@ -5220,6 +5225,7 @@ class OpReprocRing(toast.Operator):
         pars["path_output"] = os.path.join(self.out, "pol")
         pars["kfirst"] = False
         pars["write_binmap"] = True
+        pars["write_hits"] = False
         pars["file_root"] = "madam_I" + self.siter + "_" + det
 
         madam = OpMadam(
@@ -5428,11 +5434,11 @@ class OpReprocRing(toast.Operator):
         pars["write_binmap"] = False
         pars["write_matrix"] = False
         pars["write_wcov"] = False
-        pars["write_hits"] = False
+        pars["write_hits"] = True#False
         pars["write_leakmatrix"] = False
         pars["force_pol"] = False
         pars["temperature_only"] = True
-        pars["nsubchunk"] = 1
+        pars["nsubchunk"] = 2#1
         pars["isubchunk"] = 0
         pars["path_output"] = self.out
         pars["info"] = 0
