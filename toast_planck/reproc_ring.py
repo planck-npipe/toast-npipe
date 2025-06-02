@@ -1373,7 +1373,7 @@ class OpReprocRing(toast.Operator):
                 flush=True,
             )
         return mapsampler_fg
-    
+
     @function_timer
     def _set_up_full_bpm_template(self):
         start = MPI.Wtime()
@@ -1673,12 +1673,13 @@ class OpReprocRing(toast.Operator):
             del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
 
         return
-    
+
     @function_timer
     def _add_pixFSL_timeline(
         self,
         iring,
         pixFSL_timeline,
+        rings,
         templates,
         ring_theta,
         ring_phi,
@@ -1721,24 +1722,28 @@ class OpReprocRing(toast.Operator):
                 ring_fsl *= self.fslbeam[det][fsl_pixel]
                 pixFSL_timeline[iring][det] += ring_fsl
             del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
-        
+
         if self.ring_fslnames is not None:
             for ring_fslname, ring_fslpath in zip(self.ring_fslnames, self.ring_fslpaths):
                 # self.ring_numbers == absolute ring numbers
                 ring_index = self.ring_numbers[iring] #iring + self.ring_offset #+ 12957 (half2 jackknife)
                 fsl_path = os.path.join(ring_fslpath,"ring_fsl_{}_{}.pck".format(ring_index, det))
-                try:
+                if os.path.isfile(fsl_path):
                     with open(fsl_path,"rb") as handle:
                         ring_fsl = pickle.load(handle)
-                except FileNotFoundError:
-                    print("WARNING: FSL ring {} for detector {} not found at {}".format(ring_index, det, fsl_path))
-                    # TO DO: Flag this ring for this detector
-                    continue
-                templates[iring][det][ring_fslname] = RingTemplate(ring_fsl, 0)
-                if ring_fslname not in namplitude:
-                    namplitude[ring_fslname] = 1
-                del ring_fsl
-        return            
+                    templates[iring][det][ring_fslname] = RingTemplate(ring_fsl, 0)
+                    if ring_fslname not in namplitude:
+                        namplitude[ring_fslname] = 1
+                    del ring_fsl
+                else:
+                    print(
+                        f"WARNING: FSL ring {ring_index} for detector {det} "
+                        f"not found at {fsl_path}"
+                    )
+                    # Flag this ring for this detector
+                    del rings[iring][det]
+                    del templates[iring][det]
+        return
 
     @function_timer
     def _add_bandpass_templates(
@@ -1819,7 +1824,7 @@ class OpReprocRing(toast.Operator):
             del fg_toi
         return
 
-    
+
 
     @function_timer
     def _add_polarization_templates(
@@ -2183,14 +2188,14 @@ class OpReprocRing(toast.Operator):
                     self.fslbeam = {}
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
-                
+
                 # Temporary high resolution map in RING scheme built only in root
                 if self.rank == 0:
                     if self.mapsampler_freq.nest:
                         mapfreq_ring = hp.reorder(self.mapsampler_freq.Map[:], n2r=True)
                     else:
                         mapfreq_ring = self.mapsampler_freq.Map[:]
-                
+
                 for det in self.dets:
                     self.fslbeam_mask[det] = hp.read_map(
                         self.fslbeam_mask_path[det], nest=False
@@ -2200,13 +2205,13 @@ class OpReprocRing(toast.Operator):
                             self.fslbeam_path[det], nest=False
                         )
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
-                    # We set a sky nside that can support a FWHM smoothing 
+                    # We set a sky nside that can support a FWHM smoothing
                     # which has the same mean pixel separation of the FSL mask
                     self.nside_lowres_sky[det] = 4*self.nside_fsl[det]
                     self.fsl_pixels[det] = np.arange(
                         12 * self.nside_fsl[det]**2
                     )[self.fslbeam_mask[det]]
-                    
+
                     # Smooth, downgrade and reorder to ring since pix2vec is faster
                     # Intermediary objects built only in root then final low res. map is broadcasted
                     if self.rank == 0:
@@ -2228,7 +2233,7 @@ class OpReprocRing(toast.Operator):
 
                 if self.rank == 0:
                     del mapfreq_ring, downgraded_alm
-        
+
         memreport("after pixelized FSL template set-up", self.comm)
 
         self.local_dipo_amp = np.zeros(self.nring)
@@ -2239,13 +2244,13 @@ class OpReprocRing(toast.Operator):
         ngood_ring = 0
 
         pixFSL_timeline = None
-        
+
         if self.write_pixFSL:
             pixFSL_timeline = {}
             pixfsl_out = os.path.join(self.out, self.pixfsl_output_dir)
             if self.rank == 0:
                 if not os.path.exists(pixfsl_out):
-                    os.makedirs(pixfsl_out)  
+                    os.makedirs(pixfsl_out)
 
         for iring, (istart, istop) in enumerate(
             zip(self.local_starts, self.local_stops)
@@ -2301,6 +2306,7 @@ class OpReprocRing(toast.Operator):
                 self._add_pixFSL_timeline(
                         iring,
                         pixFSL_timeline,
+                        rings,
                         templates,
                         ring_theta,
                         ring_phi,
@@ -2312,7 +2318,7 @@ class OpReprocRing(toast.Operator):
                 if self.write_pixFSL:
                     # iring is local index, ring_offset is the offset relative to the first ring in the first process
                     # self.ring_numbers == absolute ring numbers
-                    ring_index = self.ring_numbers[iring] #iring + self.ring_offset 
+                    ring_index = self.ring_numbers[iring] #iring + self.ring_offset
                     fsl_path = os.path.join(pixfsl_out,"ring_fsl_{}_{}.pck".format(ring_index, det))
                     print(f"[rank {self.rank}] Writing {fsl_path} ...")
                     with open(fsl_path, 'wb') as handle:
@@ -2473,7 +2479,7 @@ class OpReprocRing(toast.Operator):
                     det,
                     namplitude,
                 )
-        
+
         if self.write_pixFSL:
             # Abort code if running in dump FSL mode
             self.comm.Barrier()
@@ -3711,7 +3717,7 @@ class OpReprocRing(toast.Operator):
                         best_fits[fslname] = 0.0
                     best_fits[fslname] += amp * orbital_gain
         return
-    
+
     @function_timer
     def _subtract_pixFSL_timeline(
         self,
@@ -5064,7 +5070,7 @@ class OpReprocRing(toast.Operator):
         )
         self.mapsampler_freq_has_dipole = True
         del full_map
-        
+
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
             if self.rank == 0:
@@ -5091,7 +5097,7 @@ class OpReprocRing(toast.Operator):
 
             if self.rank == 0:
                 del mapfreq_ring, downgraded_alm
-                
+
         """
         Smoothing the polarization template may compromise single detector maps
         if self.pol_fwhm:
@@ -5531,7 +5537,7 @@ class OpReprocRing(toast.Operator):
         if self.rank == 0:
             print("    Writing TOD", flush=True)
 
-        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME)) # No FSL tod cache to clear for 857 processing 
+        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME)) # No FSL tod cache to clear for 857 processing
 
         if self.effdir_out is None:
             return
@@ -5777,7 +5783,7 @@ class OpReprocRing(toast.Operator):
         if self.cache.exists("mask_bp"):
             self.cache.destroy("mask_bp")
         self.cache.clear("orbital_dipole.*")
-        
+
         self.write_tod()
 
         memreport("after write_tod", self.comm)
