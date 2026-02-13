@@ -127,13 +127,20 @@ def list_files(path, cache=True):
         files = pickle.load(open(fn_cache, "rb"))
     else:
         files = []
-        for root, directories, filenames in os.walk(path, followlinks=True):
-            for directory in directories:
-                if "AVR" in directory:
-                    continue  # No compression diagnostics
-                files += list_files(os.path.join(root, directory), cache=False)
-            for filename in filenames:
-                files.append(os.path.join(root, filename))
+        # Use os.scandir instead of os.walk because it is more efficient
+        with os.scandir(path) as it:
+            ndir = 0
+            nfile = 0
+            for entry in it:
+                if entry.is_dir():
+                    if "AVR" in entry.name:
+                        continue  # No compression diagnostics
+                    files += list_files(entry.path, cache=False)
+                    ndir += 1
+                elif entry.is_file():
+                    files.append(entry.path)
+                    nfile += 1
+            print(f"Found {nfile} files {ndir} and directories in {path}", flush=True)
         if cache:
             print("Writing list of cached files to {}".format(fn_cache), flush=True)
             pickle.dump(files, open(fn_cache, "wb"))

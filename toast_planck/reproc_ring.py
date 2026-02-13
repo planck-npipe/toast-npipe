@@ -251,6 +251,10 @@ class OpReprocRing(toast.Operator):
         co=None,
         co2=None,
         co3=None,
+        bpm1=None,
+        bpm2=None,
+        bpm3=None,
+        bpm4=None,
         dust=None,
         dust_pol=None,
         sync=None,
@@ -276,12 +280,18 @@ class OpReprocRing(toast.Operator):
         forcepol=False,
         forcefsl=False,
         fslnames=None,
+        ring_fslnames=None,
+        ring_fslpaths=None,
         fslbeam_mask_path=None,
+        fslbeam_path=None,
+        write_pixFSL=False,
+        pixfsl_output_dir=None,
         asymmetric_fsl=False,
         pscorrect=False,
         psradius=30,
         bpcorrect=False,
         bpcorrect2=False,
+        bpfull=False,
         fgdipole=False,
         madampars=None,
         bad_rings=None,
@@ -371,6 +381,10 @@ class OpReprocRing(toast.Operator):
         self.co1 = co
         self.co2 = co2
         self.co3 = co3
+        self.bpm1 = bpm1
+        self.bpm2 = bpm2
+        self.bpm3 = bpm3
+        self.bpm4 = bpm4
         self.dust = dust
         self.dust_pol = dust_pol
         self.sync = sync
@@ -405,16 +419,23 @@ class OpReprocRing(toast.Operator):
         self.forcepol = forcepol
         self.forcefsl = forcefsl
         self.fslnames = fslnames
+        self.ring_fslnames = ring_fslnames
+        self.ring_fslpaths = ring_fslpaths
         self.fslbeam_mask_path = fslbeam_mask_path
         self.fslbeam_mask = None
+        self.fslbeam_path = fslbeam_path
+        self.fslbeam = None
         self.nside_fsl = None
         self.fsl_pixels = None
         self.nside_lowres_sky = None
+        self.write_pixFSL = write_pixFSL
+        self.pixfsl_output_dir = pixfsl_output_dir
         self.asymmetric_fsl = asymmetric_fsl
         self.pscorrect = pscorrect
         self.psradius = psradius
         self.bpcorrect = bpcorrect or quss_correct
         self.bpcorrect2 = bpcorrect2
+        self.bpfull = bpfull
         # Monte Carlo mode does not support bpcorrect2
         if self.bpcorrect2 and self.fg_deriv is not None:
             self.bpcorrect2 = False
@@ -1354,6 +1375,36 @@ class OpReprocRing(toast.Operator):
         return mapsampler_fg
 
     @function_timer
+    def _set_up_full_bpm_template(self):
+        start = MPI.Wtime()
+        if self.bpfull:
+            for name, path in [("BPM1", self.bpm1), ("BPM2", self.bpm2), ("BPM3", self.bpm3), ("BPM4", self.bpm4)]:
+                if name in self.mapsamplers:
+                    # We already loaded this map in a previous iteration
+                    continue
+                if path is not None:
+                    if path in cached_mapsamplers:
+                        self.mapsamplers[name] = cached_mapsamplers[path]
+                    else:
+                        self.mapsamplers[name] = MapSampler(
+                            path,
+                            pol=False,
+                            nside=self.bandpass_nside,
+                            comm=self.comm,
+                            cache=self.cache,
+                            nest=True,
+                        )
+                        if self.mcmode:
+                            cached_mapsamplers[path] = self.mapsamplers[name]
+        stop = MPI.Wtime()
+        if self.rank == 0:
+            print(
+                "       Full bandpass mismatch model initialized in {:.2f} s" "".format(stop - start),
+                flush=True,
+            )
+        return
+
+    @function_timer
     def _set_up_polarization(self, mapsampler_fg):
         start = MPI.Wtime()
         for ipol, polmap in enumerate([self.polmap, self.polmap2, self.polmap3]):
@@ -1624,6 +1675,77 @@ class OpReprocRing(toast.Operator):
         return
 
     @function_timer
+    def _add_pixFSL_timeline(
+        self,
+        iring,
+        pixFSL_timeline,
+        rings,
+        templates,
+        ring_theta,
+        ring_phi,
+        ring_psi,
+        det,
+        namplitude,
+    ):
+        if self.write_pixFSL:
+            ## Compute detector quaternions
+            nbin = ring_theta.shape[0]
+            # We add 180 deg to psi here as the beams seem to be rotated by that amount from the fits
+            psi = ring_psi - np.radians((self.rimo[det].psi_pol + self.rimo[det].psi_uv)) + np.radians(180)
+            det_quat = np.zeros((nbin, 4))
+            # ZYZ conversion from
+            # http://ntrs.nasa.gov/archive/nasa/casi.ntrs.nasa.gov/19770024290.pdf
+            # Note: The above document has the scalar part of the quaternion at
+            # first position but quaternionarray module has it at the end, we
+            # use the quaternionarray convention
+            # scalar part
+            det_quat[:, 3] = np.cos(0.5 * ring_theta) * np.cos(0.5 * (ring_phi + psi))
+            # vector part
+            det_quat[:, 0] = -np.sin(0.5 * ring_theta) * np.sin(0.5 * (ring_phi - psi))
+            det_quat[:, 1] = np.sin(0.5 * ring_theta) * np.cos(0.5 * (ring_phi - psi))
+            det_quat[:, 2] = np.cos(0.5 * ring_theta) * np.sin(0.5 * (ring_phi + psi))
+
+            ## Cumulate FSL timeline pixel by pixel
+            pixFSL_timeline[iring][det] = np.zeros(nbin, dtype=np.float32)
+            for fsl_pixel in self.fsl_pixels[det]:
+                dtheta_fsl, dphi_fsl = hp.pix2ang(self.nside_fsl[det], fsl_pixel, nest=False)
+                # Sidelobe pixel rotation
+                sidelobe_quat = qa.mult(
+                    qa.rotation(ZAXIS, dphi_fsl),
+                    qa.rotation(YAXIS, dtheta_fsl)
+                )
+                full_quat = qa.mult(det_quat, sidelobe_quat)
+                vec_sl = qa.rotate(full_quat, ZAXIS).T
+                pix_sl = hp.vec2pix(self.nside_lowres_sky[det], *vec_sl, nest=False)
+                ring_fsl = self.downgraded_mapsampler_freq[det][pix_sl].astype(np.float32, copy=False)
+                ring_fsl -= np.mean(ring_fsl)
+                ring_fsl *= self.fslbeam[det][fsl_pixel]
+                pixFSL_timeline[iring][det] += ring_fsl
+            del det_quat, full_quat, vec_sl, pix_sl, ring_fsl
+
+        if self.ring_fslnames is not None:
+            for ring_fslname, ring_fslpath in zip(self.ring_fslnames, self.ring_fslpaths):
+                # self.ring_numbers == absolute ring numbers
+                ring_index = self.ring_numbers[iring] #iring + self.ring_offset #+ 12957 (half2 jackknife)
+                fsl_path = os.path.join(ring_fslpath,"ring_fsl_{}_{}.pck".format(ring_index, det))
+                if os.path.isfile(fsl_path):
+                    with open(fsl_path,"rb") as handle:
+                        ring_fsl = pickle.load(handle)
+                    templates[iring][det][ring_fslname] = RingTemplate(ring_fsl, 0)
+                    if ring_fslname not in namplitude:
+                        namplitude[ring_fslname] = 1
+                    del ring_fsl
+                else:
+                    print(
+                        f"WARNING: FSL ring {ring_index} for detector {det} "
+                        f"not found at {fsl_path}"
+                    )
+                    # Flag this ring for this detector
+                    del rings[iring][det]
+                    del templates[iring][det]
+        return
+
+    @function_timer
     def _add_bandpass_templates(
         self,
         ring,
@@ -1675,15 +1797,25 @@ class OpReprocRing(toast.Operator):
                 # FIXME: just like above, polarization in this branch should be
                 # conditional:
                 #    pol = not (self.temperature_only or self.temperature_only_destripe)
-                fg_toi = mapsampler.atpol(
-                    ring_theta,
-                    ring_phi,
-                    ring.weights,
-                    interp_pix=ipix,
-                    interp_weights=iweights,
-                    pol=True,
-                    onlypol=False,
-                ).astype(np.float64)
+                if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                    fg_toi = mapsampler.atpol(
+                        ring_theta,
+                        ring_phi,
+                        ring.weights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=False,
+                    ).astype(np.float64)
+                else:
+                    fg_toi = mapsampler.atpol(
+                        ring_theta,
+                        ring_phi,
+                        ring.weights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=False,
+                    ).astype(np.float64)
             if fg_toi is None:
                 continue
             templates[iring][det][name] = RingTemplate(fg_toi, 0)
@@ -1691,6 +1823,8 @@ class OpReprocRing(toast.Operator):
                 namplitude[name] = 1
             del fg_toi
         return
+
+
 
     @function_timer
     def _add_polarization_templates(
@@ -1735,6 +1869,18 @@ class OpReprocRing(toast.Operator):
                     ring.pixels,
                     glob2loc,
                 )
+                # Compute the derivates (with respect to psi) for polarization angles correction
+                fg_toi_deriv = (
+                    - 2 * iquweights[:, 2] * mapsampler.Map_Q[pix]
+                    + 2 * iquweights[:, 1] * mapsampler.Map_U[pix]
+                )
+                fg_toi_deriv = bin_ring_extra(
+                    pixels // self.ndegrade,
+                    fg_toi_deriv.astype(np.float64),
+                    pntflags | detflags,
+                    ring.pixels,
+                    glob2loc,
+                )
             else:
                 fg_toi = mapsampler.atpol(
                     ring_theta,
@@ -1745,10 +1891,25 @@ class OpReprocRing(toast.Operator):
                     pol=True,
                     onlypol=True,
                 ).astype(np.float64)
+                # Compute the derivates (with respect to psi) for polarization angles correction
+                fg_toi_deriv = mapsampler.atpol(
+                    ring_theta,
+                    ring_phi,
+                    ring.weights,
+                    interp_pix=ipix,
+                    interp_weights=iweights,
+                    pol=True,
+                    onlypol=True,
+                    pol_deriv=True
+                ).astype(np.float64)
             templates[iring][det][name] = RingTemplate(fg_toi, 0)
             if name not in namplitude:
                 namplitude[name] = 1
-            del fg_toi
+            name_deriv = name + "_deriv"
+            templates[iring][det][name_deriv] = RingTemplate(fg_toi_deriv, 0)
+            if name_deriv not in namplitude:
+                namplitude[name_deriv] = 1
+            del fg_toi, fg_toi_deriv
         return
 
     @function_timer
@@ -2002,6 +2163,7 @@ class OpReprocRing(toast.Operator):
 
         self._set_up_zodi()
         mapsampler_fg = self._set_up_foreground()
+        self._set_up_full_bpm_template()
         self._set_up_polarization(mapsampler_fg)
         self._set_up_cmb(mapsampler_fg)
         self._save_fgmap(mapsampler_fg)
@@ -2022,28 +2184,34 @@ class OpReprocRing(toast.Operator):
                 self.nside_fsl = {}
                 self.nside_lowres_sky = {}
                 self.fsl_pixels = {}
+                if self.fslbeam is None:
+                    self.fslbeam = {}
                 if self.downgraded_mapsampler_freq is None:
                     self.downgraded_mapsampler_freq = {}
-                
+
                 # Temporary high resolution map in RING scheme built only in root
                 if self.rank == 0:
                     if self.mapsampler_freq.nest:
                         mapfreq_ring = hp.reorder(self.mapsampler_freq.Map[:], n2r=True)
                     else:
                         mapfreq_ring = self.mapsampler_freq.Map[:]
-                
+
                 for det in self.dets:
                     self.fslbeam_mask[det] = hp.read_map(
                         self.fslbeam_mask_path[det], nest=False
                     ) != 0
+                    if self.fslbeam_path is not None:
+                        self.fslbeam[det] = hp.read_map(
+                            self.fslbeam_path[det], nest=False
+                        )
                     self.nside_fsl[det] = hp.get_nside(self.fslbeam_mask[det])
-                    # We set a sky nside that can support a FWHM smoothing 
+                    # We set a sky nside that can support a FWHM smoothing
                     # which has the same mean pixel separation of the FSL mask
                     self.nside_lowres_sky[det] = 4*self.nside_fsl[det]
                     self.fsl_pixels[det] = np.arange(
                         12 * self.nside_fsl[det]**2
                     )[self.fslbeam_mask[det]]
-                    
+
                     # Smooth, downgrade and reorder to ring since pix2vec is faster
                     # Intermediary objects built only in root then final low res. map is broadcasted
                     if self.rank == 0:
@@ -2065,7 +2233,7 @@ class OpReprocRing(toast.Operator):
 
                 if self.rank == 0:
                     del mapfreq_ring, downgraded_alm
-        
+
         memreport("after pixelized FSL template set-up", self.comm)
 
         self.local_dipo_amp = np.zeros(self.nring)
@@ -2074,6 +2242,15 @@ class OpReprocRing(toast.Operator):
         namplitude = OrderedDict()
         templates = OrderedDict()
         ngood_ring = 0
+
+        pixFSL_timeline = None
+
+        if self.write_pixFSL:
+            pixFSL_timeline = {}
+            pixfsl_out = os.path.join(self.out, self.pixfsl_output_dir)
+            if self.rank == 0:
+                if not os.path.exists(pixfsl_out):
+                    os.makedirs(pixfsl_out)
 
         for iring, (istart, istop) in enumerate(
             zip(self.local_starts, self.local_stops)
@@ -2087,6 +2264,10 @@ class OpReprocRing(toast.Operator):
                 position = None
             pntflags = self.cache.reference(self.pntflags)[ind]
             phase = self.tod.local_phase()[ind]
+
+            if self.write_pixFSL:
+                pixFSL_timeline[iring] = {}
+
             for det in self.dets:
                 templates[iring][det] = OrderedDict()
                 if det not in rings[iring]:
@@ -2121,6 +2302,28 @@ class OpReprocRing(toast.Operator):
                 #         f,
                 #     )
                 # DEBUG end
+
+                self._add_pixFSL_timeline(
+                        iring,
+                        pixFSL_timeline,
+                        rings,
+                        templates,
+                        ring_theta,
+                        ring_phi,
+                        ring_psi,
+                        det,
+                        namplitude,
+                )
+
+                if self.write_pixFSL:
+                    # iring is local index, ring_offset is the offset relative to the first ring in the first process
+                    # self.ring_numbers == absolute ring numbers
+                    ring_index = self.ring_numbers[iring] #iring + self.ring_offset
+                    fsl_path = os.path.join(pixfsl_out,"ring_fsl_{}_{}.pck".format(ring_index, det))
+                    print(f"[rank {self.rank}] Writing {fsl_path} ...")
+                    with open(fsl_path, 'wb') as handle:
+                        pickle.dump(pixFSL_timeline[iring][det], handle, protocol=pickle.HIGHEST_PROTOCOL)
+                    continue
 
                 ring_interp_pix, ring_interp_weights = hp.get_interp_weights(
                     self.bandpass_nside, ring_theta, ring_phi, nest=True
@@ -2276,6 +2479,11 @@ class OpReprocRing(toast.Operator):
                     det,
                     namplitude,
                 )
+
+        if self.write_pixFSL:
+            # Abort code if running in dump FSL mode
+            self.comm.Barrier()
+            self.comm.Abort()
 
         if self.cmb_mc:
             # Remove CMB from the foreground mapsampler to prepare for
@@ -2730,7 +2938,7 @@ class OpReprocRing(toast.Operator):
         if not (self.temperature_only or self.temperature_only_destripe) \
            or self.force_polmaps:
             # Disable fitting the polarization templates
-            for name in ["pol0", "pol1", "pol2"]:
+            for name in ["pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                 for iring in rings.keys():
                     for idet, det in enumerate(self.dets):
                         if det in templates[iring] and name in templates[iring][det]:
@@ -2751,6 +2959,10 @@ class OpReprocRing(toast.Operator):
             "CO",
             "CO2",
             "CO3",
+            "BPM1",
+            "BPM2",
+            "BPM3",
+            "BPM4",
             "distortion",
         ]
         """
@@ -2893,10 +3105,19 @@ class OpReprocRing(toast.Operator):
                     "pol0",
                     "pol1",
                     "pol2",
+                    "pol0_deriv",
+                    "pol1_deriv",
+                    "pol2_deriv",
                     "nlgain",
+                    "BPM1",
+                    "BPM2",
+                    "BPM3",
+                    "BPM4",
                 ]
                 if self.fslnames is not None:
                     names += self.fslnames
+                if self.ring_fslnames is not None:
+                    names += self.ring_fslnames
                 for name in names:
                     if name not in self.template_offsets:
                         continue
@@ -3473,7 +3694,7 @@ class OpReprocRing(toast.Operator):
         best_fits,
         orbital_gain,
         phase,
-        ring
+        ring,
     ):
         if self.fslbeam_mask_path is not None:
             for fsl_pixel in self.fsl_pixels[det]:
@@ -3496,6 +3717,43 @@ class OpReprocRing(toast.Operator):
                         best_fits[fslname] = 0.0
                     best_fits[fslname] += amp * orbital_gain
         return
+
+    @function_timer
+    def _subtract_pixFSL_timeline(
+        self,
+        det,
+        iring,
+        old_fits,
+        templates,
+        baselines,
+        gain,
+        signal,
+        best_fits,
+        orbital_gain,
+        phase,
+        ring,
+    ):
+        if self.ring_fslnames is not None:
+            for ring_fslname in self.ring_fslnames:
+                if ring_fslname in old_fits:
+                    old_amp = old_fits[ring_fslname]
+                else:
+                    old_amp = 0
+                offset = templates[iring][det][ring_fslname].offset
+                amp = self.get_amp(det, offset, baselines, ring_fslname)
+                fsltemplate = self._interpolate_ring_template(
+                    ring, templates[iring][det][ring_fslname].template.astype(np.float64), phase
+                )
+                corr = (1 - gain) * old_amp + amp
+                signal -= corr * fsltemplate
+                if ring_fslname not in best_fits:
+                    if ring_fslname in old_fits:
+                        best_fits[ring_fslname] = old_fits[ring_fslname]
+                    else:
+                        best_fits[ring_fslname] = 0.0
+                    best_fits[ring_fslname] += amp * orbital_gain
+        return
+
 
     @function_timer
     def _interpolate_ring_template(self, ring, template, phase):
@@ -3749,6 +4007,13 @@ class OpReprocRing(toast.Operator):
                         continue
                     amp = self.get_amp(det, offset, baselines, name)
                     self.pol_amplitudes[det][name] = amp
+                    # Record best fit amplitudes of polarization angle corrections
+                    name_deriv = name + "_deriv"
+                    offset_deriv = templates[iring][det][name_deriv].offset
+                    if offset_deriv is None:
+                        continue
+                    amp_deriv = self.get_amp(det, offset_deriv, baselines, name_deriv)
+                    self.pol_amplitudes[det][name_deriv] = amp_deriv
                     continue
                 if mapsampler.nside == self.bandpass_nside:
                     ipix = interp_pix
@@ -3756,15 +4021,25 @@ class OpReprocRing(toast.Operator):
                 else:
                     ipix = None
                     iweights = None
-                fg_toi = mapsampler.atpol(
-                    theta,
-                    phi,
-                    iquweights,
-                    interp_pix=ipix,
-                    interp_weights=iweights,
-                    pol=True,
-                    onlypol=onlypol,
-                ).astype(np.float64)
+                if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                    fg_toi = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=False,
+                    ).astype(np.float64)
+                else:
+                    fg_toi = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=onlypol,
+                    ).astype(np.float64)
                 if not np.all(np.isfinite(fg_toi)):
                     print(
                         "{:4} : WARNING: non-finite value in "
@@ -3787,6 +4062,42 @@ class OpReprocRing(toast.Operator):
                     else:
                         best_fits[name] = 0.0
                     best_fits[name] += amp * orbital_gain
+                # Handle polarization derivative in case the polarization templates are subtracted
+                if name in ["pol0", "pol1", "pol2"]:
+                    name_deriv = name + "_deriv"
+                    fg_toi_deriv = mapsampler.atpol(
+                        theta,
+                        phi,
+                        iquweights,
+                        interp_pix=ipix,
+                        interp_weights=iweights,
+                        pol=True,
+                        onlypol=onlypol,
+                        pol_deriv=True,
+                    ).astype(np.float64)
+                    if not np.all(np.isfinite(fg_toi_deriv)):
+                        print(
+                            "{:4} : WARNING: non-finite value in "
+                            "fg_toi_deriv: {} {} {}".format(self.rank, det, iring, name_deriv),
+                            flush=True,
+                        )
+                    offset_deriv = templates[iring][det][name_deriv].offset
+                    if offset_deriv is None:
+                        continue
+                    if name_deriv in old_fits:
+                        old_amp_deriv = old_fits[name_deriv]
+                    else:
+                        old_amp_deriv = 0
+                    amp_deriv = self.get_amp(det, offset_deriv, baselines, name_deriv)
+                    corr_deriv = (1 - gain) * old_amp_deriv + amp_deriv
+                    signal -= corr_deriv * fg_toi_deriv
+                    if name_deriv not in best_fits:
+                        if name_deriv in old_fits:
+                            best_fits[name_deriv] = old_fits[name_deriv]
+                        else:
+                            best_fits[name_deriv] = 0.0
+                        best_fits[name_deriv] += amp_deriv * orbital_gain
+
         return
 
     @function_timer
@@ -3990,6 +4301,20 @@ class OpReprocRing(toast.Operator):
                     rings[iring][det],
                 )
 
+                self._subtract_pixFSL_timeline(
+                    det,
+                    iring,
+                    old_fits,
+                    templates,
+                    baselines,
+                    gain,
+                    signal,
+                    best_fits,
+                    orbital_gain,
+                    phase,
+                    rings[iring][det],
+                )
+
                 self._subtract_dipole(
                     templates,
                     iring,
@@ -4179,6 +4504,7 @@ class OpReprocRing(toast.Operator):
             pars["isubchunk"] = 0
             if self.temperature_only or self.temperature_only_intermediate:
                 mode = "I"
+                # pars["temperature_only"] = True
                 pars["force_pol"] = False
                 pars["write_leakmatrix"] = False
                 pars["nside_cross"] = self.nside
@@ -4220,7 +4546,7 @@ class OpReprocRing(toast.Operator):
             pars["write_binmap"] = False
             pars["write_wcov"] = not self.mcmode
             pars["write_matrix"] = not self.mcmode
-            pars["write_hits"] = not self.mcmode
+            pars["write_hits"] = True#not self.mcmode
             if self.mcmode:
                 # In MC mode, skip over previously written half ring maps
                 nsub = int(pars["nsubchunk"])
@@ -4667,7 +4993,7 @@ class OpReprocRing(toast.Operator):
         if self.temperature_only_intermediate and "pol0" in self.mapsamplers:
             start1 = MPI.Wtime()
             if self.rank == 0:
-                det = self.dets[0]
+                det0 = self.dets[0]
                 print(
                     "        Adding polarization to freqmap from pol templates",
                     flush=True
@@ -4690,16 +5016,31 @@ class OpReprocRing(toast.Operator):
                 del theta, phi
                 buf = np.zeros(npix, dtype=np.float64)
                 for name in ["pol0", "pol1", "pol2"]:
-                    if name not in self.pol_amplitudes[det]:
+                    if name not in self.pol_amplitudes[det0]:
                         continue
-                    amp = self.pol_amplitudes[det][name]
+                    # Take the average amplitude of the polarization templates
+                    amp = 0
+                    for det in self.dets:
+                        amp += self.pol_amplitudes[det][name]
+                    amp /= self.ndet
+                    # amp = self.pol_amplitudes[det0][name]
+                    print(f'{name} amplitude = {amp}', flush=True)
                     # Interpolate the pol map to full resolution pixels
                     fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_Q[:])
                     qmap += amp * buf
+                    buf.fill(0)
                     fast_scanning32(buf, interp_pix, interp_weights, self.mapsamplers[name].Map_U[:])
                     umap += amp * buf
+                    buf.fill(0)
                 full_map = np.vstack([full_map, qmap, umap])
+                shape = full_map.shape
                 del qmap, umap, interp_pix, interp_weights, buf
+            else:
+                shape = None
+                path = None
+            shape = self.comm.bcast(shape)
+            if self.rank != 0:
+                full_map = np.zeros(shape, dtype=np.float32)
             self.comm.Bcast(full_map)
             stop1 = MPI.Wtime()
             if self.rank == 0:
@@ -4729,7 +5070,7 @@ class OpReprocRing(toast.Operator):
         )
         self.mapsampler_freq_has_dipole = True
         del full_map
-        
+
         # Update low resolution sky model to sample FSL signal
         if self.fslbeam_mask_path is not None:
             if self.rank == 0:
@@ -4756,7 +5097,7 @@ class OpReprocRing(toast.Operator):
 
             if self.rank == 0:
                 del mapfreq_ring, downgraded_alm
-                
+
         """
         Smoothing the polarization template may compromise single detector maps
         if self.pol_fwhm:
@@ -4843,7 +5184,7 @@ class OpReprocRing(toast.Operator):
         pars["kfirst"] = True
         pars["write_map"] = True
         pars["bin_subsets"] = self.save_survey_maps and not self.mcmode
-        pars["write_hits"] = not self.mcmode
+        pars["write_hits"] = True#not self.mcmode
         pars["info"] = 2
 
         madam = OpMadam(
@@ -4890,6 +5231,7 @@ class OpReprocRing(toast.Operator):
         pars["path_output"] = os.path.join(self.out, "pol")
         pars["kfirst"] = False
         pars["write_binmap"] = True
+        pars["write_hits"] = False
         pars["file_root"] = "madam_I" + self.siter + "_" + det
 
         madam = OpMadam(
@@ -4923,12 +5265,22 @@ class OpReprocRing(toast.Operator):
                     self.mapsamplers[name].atpol(theta, phi, iquweights, onlypol=True)
                     * amp
                 )
-                pol_signal_deriv += (
-                    self.mapsamplers[name].atpol(
-                        theta, phi, iquweights, onlypol=True, pol_deriv=True
+                name_deriv = name + "_deriv"
+                if name_deriv not in self.pol_amplitudes[det]:
+                    pol_signal_deriv += (
+                        self.mapsamplers[name].atpol(
+                            theta, phi, iquweights, onlypol=True, pol_deriv=True
+                        )
+                        * amp
                     )
-                    * amp
-                )
+                else:
+                    amp_deriv = self.pol_amplitudes[det][name_deriv]
+                    pol_signal_deriv += (
+                        self.mapsamplers[name].atpol(
+                            theta, phi, iquweights, onlypol=True, pol_deriv=True
+                        )
+                        * amp_deriv
+                    )
         else:
             pol_signal_deriv = self.mapsampler_freq.atpol(
                 theta, phi, iquweights, onlypol=True, pol_deriv=True
@@ -4983,13 +5335,23 @@ class OpReprocRing(toast.Operator):
                     else:
                         ipix = None
                         iweights = None
-                    fg_toi = mapsampler.atpol(
-                        theta[ind],
-                        phi[ind],
-                        iquweights[ind],
-                        interp_pix=ipix,
-                        interp_weights=iweights,
-                    ).astype(np.float64)
+                    if name in ["BPM1", "BPM2", "BPM3", "BPM4"]:
+                        fg_toi = mapsampler.atpol(
+                            theta[ind],
+                            phi[ind],
+                            iquweights[ind],
+                            interp_pix=ipix,
+                            interp_weights=iweights,
+                            pol=False,
+                        ).astype(np.float64)
+                    else:
+                        fg_toi = mapsampler.atpol(
+                            theta[ind],
+                            phi[ind],
+                            iquweights[ind],
+                            interp_pix=ipix,
+                            interp_weights=iweights,
+                        ).astype(np.float64)
                     amp = self.best_fit_amplitudes[det][name]
                     bp_template[ind] += amp * fg_toi
                     del fg_toi
@@ -5078,11 +5440,11 @@ class OpReprocRing(toast.Operator):
         pars["write_binmap"] = False
         pars["write_matrix"] = False
         pars["write_wcov"] = False
-        pars["write_hits"] = False
+        pars["write_hits"] = True#False
         pars["write_leakmatrix"] = False
         pars["force_pol"] = False
         pars["temperature_only"] = True
-        pars["nsubchunk"] = 1
+        pars["nsubchunk"] = 2#1
         pars["isubchunk"] = 0
         pars["path_output"] = self.out
         pars["info"] = 0
@@ -5175,7 +5537,7 @@ class OpReprocRing(toast.Operator):
         if self.rank == 0:
             print("    Writing TOD", flush=True)
 
-        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME))
+        self.tod.cache.clear("{}_.*".format(self.tod.FSL_NAME)) # No FSL tod cache to clear for 857 processing
 
         if self.effdir_out is None:
             return
@@ -5306,10 +5668,12 @@ class OpReprocRing(toast.Operator):
                 templates, namplitude = self.build_templates(rings)
             elif (
                 self.iiter == self.niter - 1
-                and self.maskfile_bp is not None
-                and self.maskfile != self.maskfile_bp
+                # These conditions are dropped to allow for special treatment of the last iteration
+                # even when the bpmask is the same as the processing mask
+                # and self.maskfile_bp is not None
+                # and self.maskfile != self.maskfile_bp
                 and self.bpcorrect
-                and not self.quss_correct
+                # and not self.quss_correct
             ):
                 # For the last iteration, build new templates with a
                 # much smaller mask and disable calibration and
@@ -5322,6 +5686,8 @@ class OpReprocRing(toast.Operator):
                 self.do_zodi = False
                 self.do_dipo = False
                 self.do_fsl = False
+                self.fslnames = None # Temporary fix: disable FSL in the last step
+                self.ring_fslnames = None
                 self.zodier = None
                 self.maskfile = self.maskfile_bp
                 self.compress_tod(rings, update=False)
@@ -5341,10 +5707,10 @@ class OpReprocRing(toast.Operator):
                     for iring in rings.keys():
                         for det in self.dets:
                             if det in templates[iring]:
-                                for name in ["pol", "pol0", "pol1", "pol2"]:
+                                for name in ["pol", "pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                                     if name in templates[iring][det]:
                                         templates[iring][det][name].offset = None
-                for name in ["pol", "pol0", "pol1", "pol2"]:
+                for name in ["pol", "pol0", "pol1", "pol2", "pol0_deriv", "pol1_deriv", "pol2_deriv"]:
                     if name in self.template_offsets:
                         del self.template_offsets[name]
             else:
@@ -5417,10 +5783,11 @@ class OpReprocRing(toast.Operator):
         if self.cache.exists("mask_bp"):
             self.cache.destroy("mask_bp")
         self.cache.clear("orbital_dipole.*")
-        
-        self.comm.Abort()
+
         self.write_tod()
 
         memreport("after write_tod", self.comm)
+        self.comm.Abort()
+
 
         return
