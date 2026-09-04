@@ -1,4 +1,4 @@
-# Copyright (c) 2015-2018 by the parties listed in the AUTHORS file.
+# Copyright (c) 2015-2026 by the parties listed in the AUTHORS file.
 # All rights reserved.  Use of this source code is governed by
 # a BSD-style license that can be found in the LICENSE file.
 
@@ -16,7 +16,7 @@ cdef double fsamp = 2.0 * fmod
 def kernel_four_tau(double f, np.ndarray par):
   ''' sum of four lowpass filters '''
   assert par.dtype == DTYPE
-  w = np.complex(0.0,2.0*np.pi*f)
+  w = complex(0.0,2.0*np.pi*f)
   return (par[0] / (1.0+w*par[3])
           + par[1] / (1.0+w*par[4])
           + par[2] / (1.0+w*par[5])
@@ -24,7 +24,7 @@ def kernel_four_tau(double f, np.ndarray par):
 
 
 def lowpass(double omega, double tau):
-  return 1 / np.complex(1.0, omega*tau)
+  return 1 / complex(1.0, omega*tau)
 
 
 def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
@@ -43,7 +43,7 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
   cdef double tau0 = par[6]
   cdef double sphase = par[7]
   cdef np.ndarray zout = np.ones(f.shape[0], dtype=complex)
-  cdef complex norm = np.complex(1.0, 0.0)
+  cdef complex norm = complex(1.0, 0.0)
   cdef int i,i1,signe
   cdef double ff, omega, omegamod, omegap, omegam
   cdef double zden3, zden2, zden1i, zden1r, arg
@@ -70,14 +70,14 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
         zfelm = lowpass(omegam,tau0)
 
         # electronic rejection filter
-        zf1plu = np.complex(1.0, 0.5*omegap*tau1) / np.complex(1.0, omegap*tau1)
-        zf1min = np.complex(1.0, 0.5*omegam*tau1) / np.complex(1.0, omegam*tau1)
+        zf1plu = complex(1.0, 0.5*omegap*tau1) / complex(1.0, omegap*tau1)
+        zf1min = complex(1.0, 0.5*omegam*tau1) / complex(1.0, omegam*tau1)
         zfelp = zfelp * zf1plu
         zfelm = zfelm * zf1min
 
         # Sallen-Key high pass
-        zSKplu = np.complex(0.0, tau4*omegap) / np.complex(1.0, omegap*tau4)
-        zSKmin = np.complex(0.0, tau4*omegam) / np.complex(1.0, omegam*tau4)
+        zSKplu = complex(0.0, tau4*omegap) / complex(1.0, omegap*tau4)
+        zSKmin = complex(0.0, tau4*omegam) / complex(1.0, omegam*tau4)
 
         zfelp = zfelp * zSKplu * zSKplu
         zfelm = zfelm * zSKmin * zSKmin
@@ -99,8 +99,8 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
         zden1i = omegap * (zx1*zx2*zx2*1.e-8+zx2*zz3*zx1*zz4) + zden3
         zden1r = zx2*zx1 + zden2
 
-        zfelp = zfelp * np.complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegap) \
-                / np.complex(zden1r, zden1i)
+        zfelp = zfelp * complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegap) \
+                / complex(zden1r, zden1i)
 
         zden3 = -1.0 * omegam*omegam*omegam * zx1*zx1*zz3*zx2*zx2*1.0e-16*zz4
         zden2 = -1.0 * omegam*omegam*(zx1*zx2*zx2*zz3*1.e-16
@@ -109,8 +109,8 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
         zden1i = omegam * (zx1*zx2*zx2*1.e-8+zx2*zz3*zx1*zz4) + zden3
         zden1r = zx2*zx1 + zden2
 
-        zfelm = zfelm * np.complex(0.0,2.0*zx2*zx1*zz3*zz4*omegam) \
-                / np.complex(zden1r, zden1i)
+        zfelm = zfelm * complex(0.0,2.0*zx2*zx1*zz3*zz4*omegam) \
+                / complex(zden1r, zden1i)
 
         # averaging effect: original JH version
         #arg = np.pi * omegap / (2.0*fangmod)
@@ -122,7 +122,7 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
         arg = np.pi * omegap / (2*fangmod)
         # <SRH
         if avg_srh:
-           arg_2 = np.complex(np.cos(omegap*t_rw), np.sin(omegap*t_rw)) - 1
+           arg_2 = complex(np.cos(omegap*t_rw), np.sin(omegap*t_rw)) - 1
         else:
            arg_2 = arg
         zfelp = zfelp * (-1) * np.sin(arg) / arg_2
@@ -130,13 +130,13 @@ def TFelect(np.ndarray f, np.ndarray par, tauhp=51.e3*1e-6, avg_srh=False):
         arg = np.pi * omegam / (2*fangmod)
         # <SRH
         if avg_srh:
-           arg_2 = np.complex(np.cos(omegam*t_rw), np.sin(omegam*t_rw)) - 1
+           arg_2 = complex(np.cos(omegam*t_rw), np.sin(omegam*t_rw)) - 1
         else:
            arg_2 = arg
         zfelm = zfelm * (-1) * np.sin(arg) / arg_2
 
-        zfelp = zfelp * np.complex(np.cos(sphase*omegap), np.sin(sphase*omegap))
-        zfelm = zfelm * np.complex(np.cos(sphase*omegam), np.sin(sphase*omegam))
+        zfelp = zfelp * complex(np.cos(sphase*omegap), np.sin(sphase*omegap))
+        zfelm = zfelm * complex(np.cos(sphase*omegam), np.sin(sphase*omegam))
         tf = tf + (signe/(2.0*i1-1))*(zfelp+zfelm)
       if ff == 0:
         norm = tf
@@ -161,7 +161,7 @@ def LFER4(np.ndarray f, np.ndarray par):
   cdef double tau0 = par[6]
   cdef double sphase = par[7]
   cdef np.ndarray zout = np.ones(f.shape[0], dtype=complex)
-  cdef complex norm = np.complex(1.0, 0.0)
+  cdef complex norm = complex(1.0, 0.0)
   cdef int i, i1, signe
   cdef double ff, omega, omegamod, omegap, omegam, zden3
   cdef double zden2, zden1i, zden1r, arg
@@ -184,14 +184,14 @@ def LFER4(np.ndarray f, np.ndarray par):
         zfelm = lowpass(omegam, tau0)
 
         # electronic rejection filter
-        zf1plu = np.complex(1.0, 0.5*omegap*tau1) / np.complex(1.0, omegap*tau1)
-        zf1min = np.complex(1.0, 0.5*omegam*tau1) / np.complex(1.0, omegam*tau1)
+        zf1plu = complex(1.0, 0.5*omegap*tau1) / complex(1.0, omegap*tau1)
+        zf1min = complex(1.0, 0.5*omegam*tau1) / complex(1.0, omegam*tau1)
         zfelp = zfelp * zf1plu
         zfelm = zfelm * zf1min
 
         # Sallen-Key high pass
-        zSKplu = np.complex(0.0, tau4*omegap) / np.complex(1.0, omegap*tau4)
-        zSKmin = np.complex(0.0, tau4*omegam) / np.complex(1.0, omegam*tau4)
+        zSKplu = complex(0.0, tau4*omegap) / complex(1.0, omegap*tau4)
+        zSKmin = complex(0.0, tau4*omegam) / complex(1.0, omegam*tau4)
 
         zfelp = zfelp * zSKplu * zSKplu
         zfelm = zfelm * zSKmin * zSKmin
@@ -213,8 +213,8 @@ def LFER4(np.ndarray f, np.ndarray par):
         zden1i = omegap*(zx1*zx2*zx2*1.e-8+zx2*zz3*zx1*zz4) + zden3
         zden1r = zx2*zx1 + zden2
 
-        zfelp = zfelp * np.complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegap) \
-                / np.complex(zden1r, zden1i)
+        zfelp = zfelp * complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegap) \
+                / complex(zden1r, zden1i)
 
         zden3 = -1.0 * omegam**3 * zx1*zx1*zz3*zx2*zx2*1.0e-16*zz4
         zden2 = -1.0 * omegam*omegam*(zx1*zx2*zx2*zz3*1.e-16
@@ -223,8 +223,8 @@ def LFER4(np.ndarray f, np.ndarray par):
         zden1i = omegam*(zx1*zx2*zx2*1.e-8+zx2*zz3*zx1*zz4) + zden3
         zden1r = zx2*zx1 + zden2
 
-        zfelm = zfelm*np.complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegam) \
-                / np.complex(zden1r, zden1i)
+        zfelm = zfelm*complex(0.0, 2.0*zx2*zx1*zz3*zz4*omegam) \
+                / complex(zden1r, zden1i)
 
         # averaging effect
         arg = np.pi * omegap / (2*fangmod)
@@ -232,8 +232,8 @@ def LFER4(np.ndarray f, np.ndarray par):
         arg = np.pi * omegam / (2*fangmod)
         zfelm = zfelm * (-1.0) * np.sin(arg) / arg
 
-        zfelp = zfelp * np.complex(np.cos(sphase*omegap), np.sin(sphase*omegap))
-        zfelm = zfelm * np.complex(np.cos(sphase*omegam), np.sin(sphase*omegam))
+        zfelp = zfelp * complex(np.cos(sphase*omegap), np.sin(sphase*omegap))
+        zfelm = zfelm * complex(np.cos(sphase*omegam), np.sin(sphase*omegam))
         tf = tf + (signe/(2.0*i1-1))*(zfelp + zfelm)
       if ff == 0:
         norm = tf
